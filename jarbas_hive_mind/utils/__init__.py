@@ -38,7 +38,7 @@ def create_self_signed_cert(cert_dir=CERTS_PATH, name="jarbas_hivemind"):
             or not exists(join(cert_dir, KEY_FILE)):
         # create a key pair
         k = crypto.PKey()
-        k.generate_key(crypto.TYPE_RSA, 1024)
+        k.generate_key(crypto.TYPE_RSA, 2048)
 
         # create a self-signed cert
         cert = crypto.X509()
