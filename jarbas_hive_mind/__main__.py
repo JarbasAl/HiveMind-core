@@ -14,7 +14,7 @@ def main():
     if args.name is not None:
         from jarbas_hive_mind.database import ClientDatabase
         with ClientDatabase() as db:
-            db.add_client(args.name, args.mail, args.key, crypto_key=args.crypto_key)
+            db.add_client(args.name, args.mail, args.access_key, crypto_key=args.crypto_key)
     config = config or CONFIGURATION
     listener = get_listener()
     listener.load_config(config)
