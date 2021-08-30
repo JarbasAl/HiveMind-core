@@ -27,7 +27,7 @@ setup(
     license='MIT',
     author='jarbasAI',
     author_email='jarbasai@mailfence.com',
-    description='Mesh Networking utilities for mycroft core'
+    description='Mesh Networking utilities for mycroft core',
     entry_points={
         'console_scripts': [
             'HiveMind-server=jarbas_hive_mind.__main__:main'
