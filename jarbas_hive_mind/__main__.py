@@ -7,14 +7,13 @@ def main():
     parser.add_argument("--name", help="human readable name")
     parser.add_argument("--access_key", help="access key")
     parser.add_argument("--crypto_key", help="payload encryption key")
-    parser.add_argument("--mail", help="human readable mail")
     parser.add_argument("--port", help="HiveMind port number")
     args = parser.parse_args()
     # Check if a user was defined
     if args.name is not None:
         from jarbas_hive_mind.database import ClientDatabase
         with ClientDatabase() as db:
-            db.add_client(args.name, args.mail, args.access_key, crypto_key=args.crypto_key)
+            db.add_client(args.name, args.access_key, crypto_key=args.crypto_key)
     config = CONFIGURATION
     listener = get_listener()
     listener.load_config(config)

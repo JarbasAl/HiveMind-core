@@ -28,7 +28,6 @@ class Client(Base):
     api_key = Column(String)
     name = Column(String)
     crypto_key = Column(String)
-    mail = Column(String)
     last_seen = Column(Integer, default=0)
     is_admin = Column(Boolean, default=False)
     blacklist = Column(Text)  # json string
@@ -105,7 +104,7 @@ class SQLClientDatabase:
             return None
         return user.crypto_key
 
-    def add_client(self, name=None, mail=None, key="", admin=False,
+    def add_client(self, name=None, key="", admin=False,
                    blacklist="{}", crypto_key=None):
         if isinstance(blacklist, dict):
             blacklist = json.dumps(blacklist)
@@ -115,12 +114,11 @@ class SQLClientDatabase:
             crypto_key = crypto_key[:16]
         if user:
             user.name = name
-            user.mail = mail
             user.blacklist = blacklist
             user.is_admin = admin
             user.crypto_key = crypto_key if crypto_key else user.crypto_key
         else:
-            user = Client(api_key=key, name=name, mail=mail,
+            user = Client(api_key=key, name=name,
                           blacklist=blacklist, crypto_key=crypto_key,
                           client_id=self.total_clients() + 1,
                           is_admin=admin)
@@ -152,4 +150,3 @@ class SQLClientDatabase:
             LOG.error(e)
         finally:
             self.close()
-

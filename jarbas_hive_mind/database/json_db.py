@@ -5,14 +5,13 @@ from ovos_utils.log import LOG
 
 
 class Client:
-    def __init__(self, client_id, api_key, name="", mail="",
+    def __init__(self, client_id, api_key, name="",
                  description="", is_admin=False, last_seen=-1,
                  blacklist=None, crypto_key=None):
         self.client_id = client_id
         self.description = description
         self.api_key = api_key
         self.name = name
-        self.mail = mail
         self.last_seen = last_seen
         self.is_admin = is_admin
         self.crypto_key = crypto_key
@@ -103,7 +102,7 @@ class JsonClientDatabase(JsonDatabase):
     def get_clients_by_name(self, name):
         return self.search_by_value("name", name)
 
-    def add_client(self, name=None, mail=None, key="",
+    def add_client(self, name=None, key="",
                    admin=None, blacklist=None, crypto_key=None):
 
         user = self.get_client_by_api_key(key)
@@ -113,8 +112,6 @@ class JsonClientDatabase(JsonDatabase):
         if item_id >= 0:
             if name:
                 user["name"] = name
-            if mail:
-                user["mail"] = mail
             if blacklist:
                 user["blacklist"] = blacklist
             if admin is not None:
@@ -123,7 +120,7 @@ class JsonClientDatabase(JsonDatabase):
 
             self.update_item(item_id, user)
         else:
-            user = Client(api_key=key, name=name, mail=mail,
+            user = Client(api_key=key, name=name,
                           blacklist=blacklist, crypto_key=crypto_key,
                           client_id=self.total_clients() + 1,
                           is_admin=admin)
@@ -142,4 +139,3 @@ class JsonClientDatabase(JsonDatabase):
             self.commit()
         except Exception as e:
             LOG.error(e)
-
