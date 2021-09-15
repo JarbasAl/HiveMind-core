@@ -30,7 +30,8 @@ setup(
     description='Mesh Networking utilities for mycroft core',
     entry_points={
         'console_scripts': [
-            'HiveMind-server=jarbas_hive_mind.__main__:main'
+            'HiveMind-server=jarbas_hive_mind.__main__:main',
+            'HiveMind-database=jarbas_hive_mind.database.__main__:main'
         ]
     }
 )
