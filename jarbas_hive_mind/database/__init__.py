@@ -2,12 +2,44 @@ import json
 from jarbas_hive_mind.configuration import CONFIGURATION
 from json_database import JsonDatabase
 from ovos_utils.log import LOG
+from functools import wraps
+
+
+def cast_to_client_obj():
+    valid_kwargs = ("client_id", "api_key", "name",
+                    "description", "is_admin", "last_seen",
+                    "blacklist", "crypto_key", "password")
+
+    def _handler(func):
+
+        def _cast(ret):
+            if ret is None or isinstance(ret, Client):
+                return ret
+            if isinstance(ret, list):
+                return [_cast(r) for r in ret]
+            if isinstance(ret, dict):
+                if not all((k in valid_kwargs
+                            for k in ret.keys())):
+                    raise RuntimeError(f"{func} returned a dict with unknown keys")
+                return Client(**ret)
+
+            raise TypeError(
+                "cast_to_client_obj decorator can only be used in functions that return None, dict, Client or a list of those types")
+
+        @wraps(func)
+        def call_function(*args, **kwargs):
+            ret = func(*args, **kwargs)
+            return _cast(ret)
+
+        return call_function
+
+    return _handler
 
 
 class Client:
     def __init__(self, client_id, api_key, name="",
                  description="", is_admin=False, last_seen=-1,
-                 blacklist=None, crypto_key=None):
+                 blacklist=None, crypto_key=None, password=None):
         self.client_id = client_id
         self.description = description
         self.api_key = api_key
@@ -15,11 +47,31 @@ class Client:
         self.last_seen = last_seen
         self.is_admin = is_admin
         self.crypto_key = crypto_key
+        self.password = password
         self.blacklist = blacklist or {
             "messages": [],
             "skills": [],
             "intents": []
         }
+
+    def __getitem__(self, item):
+        return self.__dict__.get(item)
+
+    def __setitem__(self, key, value):
+        if hasattr(self, key):
+            setattr(self, key, value)
+        else:
+            raise ValueError("unknown property")
+
+    def __eq__(self, other):
+        if not isinstance(other, dict):
+            other = other.__dict__
+        if self.__dict__ == other:
+            return True
+        return False
+
+    def __repr__(self):
+        return str(self.__dict__)
 
 
 class ClientDatabase(JsonDatabase):
@@ -93,17 +145,20 @@ class ClientDatabase(JsonDatabase):
             return search[0]["blacklist"]
         return None
 
+    @cast_to_client_obj()
     def get_client_by_api_key(self, api_key):
         search = self.search_by_value("api_key", api_key)
         if len(search):
             return search[0]
         return None
 
+    @cast_to_client_obj()
     def get_clients_by_name(self, name):
         return self.search_by_value("name", name)
 
-    def add_client(self, name=None, key="",
-                   admin=None, blacklist=None, crypto_key=None):
+    @cast_to_client_obj()
+    def add_client(self, name=None, key="", admin=None,
+                   blacklist=None, crypto_key=None, password=None):
 
         user = self.get_client_by_api_key(key)
         item_id = self.get_item_id(user)
@@ -116,15 +171,18 @@ class ClientDatabase(JsonDatabase):
                 user["blacklist"] = blacklist
             if admin is not None:
                 user["is_admin"] = admin
-            user["crypto_key"] = crypto_key
-
+            if crypto_key:
+                user["crypto_key"] = crypto_key
+            if password:
+                user["password"] = password
             self.update_item(item_id, user)
         else:
             user = Client(api_key=key, name=name,
                           blacklist=blacklist, crypto_key=crypto_key,
                           client_id=self.total_clients() + 1,
-                          is_admin=admin)
+                          is_admin=admin, password=password)
             self.add_item(user)
+        return user
 
     def total_clients(self):
         return len(self)
