@@ -1,4 +1,4 @@
-from jarbas_hive_mind.database import ClientDatabase
+from hivemind_core.database import ClientDatabase
 
 name = "JarbasCliTerminal"
 key = "RESISTENCEisFUTILE"

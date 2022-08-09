@@ -1,8 +1,6 @@
-pyopenssl
-service_identity
-autobahn
-ovos_utils>=0.0.17
-json_database>=0.2.6
+tornado
+ovos_utils>=0.0.33
 pycryptodomex
 HiveMind_presence~=0.0.2a2
-mycroft-messagebus-client>=0.9.1
+ovos-bus-client
+poorman_handshake>=0.1.0

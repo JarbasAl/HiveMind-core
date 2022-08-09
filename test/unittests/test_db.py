@@ -1,7 +1,7 @@
 import os
 from unittest import TestCase
 
-from jarbas_hive_mind.database import ClientDatabase, Client
+from hivemind_core.database import ClientDatabase, Client
 
 
 class TestDB(TestCase):
@@ -12,7 +12,7 @@ class TestDB(TestCase):
         access_key = os.urandom(16).hex()
         password = None
 
-        with ClientDatabase(path="/tmp/test_db") as db:
+        with ClientDatabase() as db:
             n = db.total_clients()
             name = f"HiveMind-Node-{n}"
             user = db.add_client(name, access_key,

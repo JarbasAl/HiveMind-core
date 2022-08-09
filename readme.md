@@ -12,15 +12,6 @@ Work in progress documentation can be found in the [wiki](https://github.com/Jar
 
 You can also join the [Hivemind Matrix chat](https://matrix.to/#/#jarbashivemind:matrix.org) for general news, support and chit chat
 
-# Stats:
-
-| [![GitHub stars](https://img.shields.io/github/stars/OpenJarbas/HiveMind-core.svg)](https://github.com/OpenJarbas/HiveMind-core/stargazers)  | [![GitHub last commit](https://img.shields.io/github/last-commit/OpenJarbas/HiveMind-core.svg)](https://github.com/OpenJarbas/HiveMind-core/commits/dev) |
-|:---:|:---:|
-| Please :star: this repo if you find it useful| This shows when this repo was updated for the last time |
-|[![License: Apache License 2.0](https://img.shields.io/crates/l/rustc-serialize.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)| [![contributions welcome](https://img.shields.io/badge/contributions-welcome-blue.svg?style=flat)](https://github.com/OpenJarbas/HiveMind-core/pulls) |
-| I'm using the Apache License 2.0 which means commercial use is allowed | If you have any ideas, they're always welcome.  Either submit an issue or a PR! |
-| [![Buy me a](https://img.shields.io/badge/BuyMeABeer-Paypal-blue.svg)](https://www.paypal.me/AnaIsabelFerreira) | [![Sponsor](https://img.shields.io/badge/SponsorDevelopment-Liberapay-blue.svg)](https://liberapay.com/jarbasAI/) |
-| If you feel the need, now it's as easy as clicking this button!  | You can help sponsoring HiveMind continued development with recurring donations|
 
 # HiveMind components
 
