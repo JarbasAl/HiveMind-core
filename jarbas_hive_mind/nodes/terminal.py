@@ -5,7 +5,7 @@ from ovos_utils.log import LOG
 from ovos_utils.messagebus import Message
 
 from hivemind_bus_client import HiveMessage, \
-    HiveMessageType
+    HiveMessageType, HiveMessageBusClient
 from hivemind_bus_client.util import get_mycroft_msg
 from jarbas_hive_mind.message import HiveMessage, HiveMessageType
 from jarbas_hive_mind.nodes import HiveMindNodeType
@@ -15,17 +15,13 @@ class HiveMindTerminal(Thread):
     platform = "HiveMindTerminalV0.3"
     node_type = HiveMindNodeType.TERMINAL
 
-    def __init__(self, connection=None, *args, **kwargs):
+    def __init__(self, connection, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        assert isinstance(connection, HiveMessageBusClient)
         self.hive = connection
-        if connection:
-            self._register_hivemind_handlers()
+        self._register_hivemind_handlers()
         self.upnp_server = None
         self.ssdp = None
-
-    def bind(self, hive):
-        self.hive = hive
-        self._register_hivemind_handlers()
 
     def _register_hivemind_handlers(self):
         self.hive.on(HiveMessageType.BUS, self.handle_bus_message)
