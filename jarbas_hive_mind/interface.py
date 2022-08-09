@@ -78,8 +78,7 @@ class HiveMindMasterInterface:
                    "source_peer": self.peer,
                    "node": self.node_id
                    }
-        no_send = [n["source"] for n in message.route]
-        self.send_to_many(payload, no_send)
+        self.send_to_many(payload)
 
     @cast_to_hivemessage()
     def propagate(self, message):
@@ -89,10 +88,12 @@ class HiveMindMasterInterface:
                    "source_peer": self.peer,
                    "node": self.node_id
                    }
+
+        # send downstream to any nodes who didn't get the message yet
         no_send = [n["source"] for n in message.route]
         self.send_to_many(payload, no_send)
 
-        # tell Slave to propagate upstream
+        # tell slaves connected to bus to propagate upstream
         if self.bus and message.source_peer != self.peer:
             payload = payload2dict(payload)
             message = Message("hive.send.upstream", payload,
@@ -109,7 +110,7 @@ class HiveMindMasterInterface:
                    "source_peer": self.peer,
                    "node": self.node_id
                    }
-        # tell Slave to escalate upstream
+        # tell slaves connected to bus to escalate upstream
         if self.bus and message.source_peer != self.peer:
             payload = payload2dict(payload)
             message = Message("hive.send.upstream", payload,

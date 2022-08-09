@@ -1,3 +1,4 @@
+import random
 from time import sleep
 from unittest import TestCase, skip
 
@@ -14,9 +15,13 @@ def get_hive():
     crypto_key = "6e9941197be7f949"
 
     with ClientDatabase() as db:
-        n = db.total_clients()
-        name = f"HiveMind-UNITTESTS-Node-{n}"
-        db.add_client(name, key, crypto_key=crypto_key)
+        client = db.get_client_by_api_key(key)
+        if client:
+            db.change_crypto_key(key, crypto_key)
+        else:
+            n = db.total_clients()
+            name = f"HiveMind-UNITTESTS-Node-{n}"
+            db.add_client(name, key, crypto_key=crypto_key)
 
     # Here is a minimal test hive mind
     #
@@ -67,14 +72,15 @@ master, mid, mid2, end, end2, end3 = get_hive()
 
 
 class TestConnections(TestCase):
-
-    def test_connections(self):
+    def test_hello(self):
         # assert node_ids received via "hello" message
         self.assertEqual(mid.connection.node_id, master.hive.node_id)
         self.assertEqual(mid2.connection.node_id, master.hive.node_id)
         self.assertEqual(end.connection.node_id, mid.hive.node_id)
         self.assertEqual(end2.connection.node_id, mid.hive.node_id)
         self.assertEqual(end3.connection.node_id, mid2.hive.node_id)
+
+    def test_connections(self):
         # assert clients connected to servers
         self.assertTrue(mid.connection.peer in master.hive.clients)
         self.assertTrue(mid2.connection.peer in master.hive.clients)
