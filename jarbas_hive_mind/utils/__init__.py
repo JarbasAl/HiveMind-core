@@ -5,17 +5,10 @@ from os.path import exists, join
 from socket import gethostname
 
 from OpenSSL import crypto
-import json
-from jarbas_hive_mind.settings import LOG_BLACKLIST, DATA_PATH
-from jarbas_hive_mind.exceptions import DecryptionKeyError, EncryptionKeyError
 from ovos_utils.log import LOG
-from ovos_utils.security import encrypt, decrypt
-from binascii import hexlify, unhexlify
 
-# TODO ovos_utils for all of these
-# this used to be a method here, keep here for now in case something is
-# importing it, TODO deprecate
-from ovos_utils import get_ip
+from hivemind_bus_client.util import *
+from jarbas_hive_mind.settings import LOG_BLACKLIST, DATA_PATH
 
 
 def validate_param(value, name):
@@ -96,7 +89,7 @@ def create_echo_function(name, whitelist=None):
                 lvl = msg["data"].get("level", "").upper()
                 if lvl in ["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"]:
                     LOG.level = lvl
-                    LOG(name).info("Changing log level to: {}".format(lvl))
+                    LOG.info("Changing log level to: {}".format(lvl))
                     try:
                         logging.getLogger('urllib3').setLevel(lvl)
                     except Exception:
@@ -105,7 +98,7 @@ def create_echo_function(name, whitelist=None):
                 # Allow enable/disable of messagebus traffic
                 log_bus = msg["data"].get("bus", None)
                 if log_bus is not None:
-                    LOG(name).info("Bus logging: " + str(log_bus))
+                    LOG.info("Bus logging: " + str(log_bus))
                     _log_all_bus_messages = log_bus
             elif msg.get("type") == "registration":
                 # do not log tokens from registration messages
@@ -116,50 +109,6 @@ def create_echo_function(name, whitelist=None):
 
         if _log_all_bus_messages:
             # Listen for messages and echo them for logging
-            LOG(name).debug(message)
+            LOG.debug(message)
 
     return echo
-
-
-def serialize_message(message):
-    # convert a Message object into raw data that can be sent over
-    # websocket
-    if hasattr(message, 'serialize'):
-        return message.serialize()
-    elif isinstance(message, dict):
-        message = {k: v if not hasattr(v, 'serialize') else serialize_message(v)
-                   for k, v in message.items()}
-        return json.dumps(message)
-    else:
-        return json.dumps(message.__dict__)
-
-
-def encrypt_as_json(key, data, nonce=None):
-    if isinstance(data, dict):
-        data = json.dumps(data)
-    if len(key) > 16:
-        key = key[0:16]
-    try:
-        ciphertext, tag, nonce = encrypt(key, data, nonce=nonce)
-    except:
-        raise EncryptionKeyError
-    return json.dumps({"ciphertext": hexlify(ciphertext).decode('utf-8'),
-            "tag": hexlify(tag).decode('utf-8'),
-            "nonce": hexlify(nonce).decode('utf-8')})
-
-
-def decrypt_from_json(key, data):
-    if isinstance(data, str):
-        data = json.loads(data)
-    if len(key) > 16:
-        key = key[0:16]
-    ciphertext = unhexlify(data["ciphertext"])
-    if data.get("tag") is None:  # web crypto
-        ciphertext, tag = ciphertext[:-16], ciphertext[-16:]
-    else:
-        tag = unhexlify(data["tag"])
-    nonce = unhexlify(data["nonce"])
-    try:
-        return decrypt(key, ciphertext, tag, nonce)
-    except ValueError:
-        raise DecryptionKeyError

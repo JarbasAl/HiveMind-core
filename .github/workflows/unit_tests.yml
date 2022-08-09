@@ -28,6 +28,7 @@ jobs:
           python -m pip install build wheel
       - name: Install repo
         run: |
+          pip install git+https://github.com/JarbasHiveMind/hivemind_websocket_client@rewrite
           pip install .
       - name: Install test dependencies
         run: |

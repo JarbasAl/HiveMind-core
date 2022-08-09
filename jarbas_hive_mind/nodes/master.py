@@ -1,29 +1,23 @@
 import base64
+import json
+
+from autobahn.asyncio.websocket import WebSocketServerProtocol, WebSocketServerFactory
+from ovos_utils.log import LOG
+from ovos_utils.messagebus import FakeBus
+from ovos_utils.messagebus import Message, get_mycroft_bus
+
+from HiveMind_presence import LocalPresence
 from jarbas_hive_mind.database import ClientDatabase
 from jarbas_hive_mind.exceptions import UnauthorizedKeyError
-from ovos_utils.log import LOG
-from ovos_utils.messagebus import Message, get_mycroft_bus
-from jarbas_hive_mind.utils import decrypt_from_json, encrypt_as_json
 from jarbas_hive_mind.interface import HiveMindMasterInterface
-import json
 from jarbas_hive_mind.message import HiveMessage, HiveMessageType
 from jarbas_hive_mind.nodes import HiveMindNodeType
-from ovos_utils.messagebus import FakeBus
-from HiveMind_presence import LocalPresence
+from jarbas_hive_mind.utils import decrypt_from_json, encrypt_as_json
 
 
 # protocol
-class HiveMindProtocol:
+class HiveMindProtocol(WebSocketServerProtocol):
     platform = "HiveMindV0.7"
-
-    def __new__(cls, *args, **kwargs):
-        # this non sense is changing the base class
-        # this allows subclassing either from twisted or asyncio
-        # but you only know which at runtime
-        from jarbas_hive_mind.backends import WebSocketServerProtocol
-        x = type(cls.__name__, (HiveMindProtocol, WebSocketServerProtocol), {})
-        # print(x, x.__bases__)
-        return super(HiveMindProtocol, cls).__new__(x)
 
     @staticmethod
     def decode_auth(request):
@@ -150,17 +144,8 @@ class HiveMindProtocol:
                             doNotCompress=doNotCompress)
 
 
-class HiveMind:
+class HiveMind(WebSocketServerFactory):
     node_type = HiveMindNodeType.MIND
-
-    def __new__(cls, *args, **kwargs):
-        # this non sense is changing the base class
-        # this allows subclassing either from twisted or asyncio
-        # but you only know which at runtime
-        from jarbas_hive_mind.backends import WebSocketServerFactory
-        x = type(cls.__name__, (HiveMind, WebSocketServerFactory), {})
-        # print(x, x.__bases__)
-        return super(HiveMind, cls).__new__(x)
 
     def __init__(self, bus=None, announce=True, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -205,19 +190,23 @@ class HiveMind:
     def mycroft_send(self, msg_type, data=None, context=None):
         data = data or {}
         context = context or {}
-        if "client_name" not in context:
-            context["client_name"] = self.protocol.platform
-        self.bus.emit(Message(msg_type, data, context))
+        if isinstance(msg_type, Message):
+            msg = msg_type
+        else:
+            msg = Message(msg_type, data, context)
+        if "client_name" not in msg.context:
+            msg.context["client_name"] = self.protocol.platform
+        self.bus.emit(msg)
 
     def register_mycroft_messages(self):
         self.bus.on("message", self.handle_outgoing_mycroft)
-        self.bus.on('hive.send', self.handle_send)
+        self.bus.on('hive.send.downstream', self.handle_send)
 
     def shutdown(self):
         if self.presence:
             self.presence.stop()
         self.bus.remove('message', self.handle_outgoing_mycroft)
-        self.bus.remove('hive.send', self.handle_send)
+        self.bus.remove('hive.send.downstream', self.handle_send)
 
     # websocket handlers
     def handle_register(self, client, platform):
@@ -246,6 +235,11 @@ class HiveMind:
                                      "status": "connected",
                                      "platform": platform}
         self.handle_register(client, platform)
+        msg = HiveMessage(HiveMessageType.HELLO,
+                          payload={"peer": client.peer,
+                                   "pubkey": None,  # TODO - hive identity
+                                   "node_id": self.node_id})
+        client.sendMessage(msg.serialize())
 
     def handle_unregister(self, client, code, reason, context):
         """ called before unregistering a client, subclasses can take
@@ -317,7 +311,11 @@ class HiveMind:
 
     # HiveMind protocol messages -  from slave -> master
     def handle_bus_message(self, message, client):
+        self.on_bus(message.payload)
         self.handle_incoming_mycroft(message.payload, client)
+
+    def on_bus(self, message):
+        pass
 
     def handle_broadcast_message(self, message, client):
         """
@@ -325,8 +323,12 @@ class HiveMind:
         """
         # Slaves are not allowed to broadcast, by definition broadcast goes
         # downstream only, use propagate instead
-        LOG.debug("Ignoring broadcast message from downstream, illegal action")
+        LOG.warning("Received broadcast message from downstream, illegal action")
         # TODO kick client for misbehaviour so it stops doing that?
+        self.on_broadcast(message.payload)
+
+    def on_broadcast(self, message):
+        pass
 
     def handle_propagate_message(self, message, client):
         """
@@ -341,6 +343,11 @@ class HiveMind:
         pload.replace_route(message.route)
         self.interface.propagate(pload)
 
+        self.on_propagate(message.payload)
+
+    def on_propagate(self, message):
+        pass
+
     def handle_escalate_message(self, message, client):
         """
         message (HiveMessage): HiveMind message object
@@ -354,6 +361,11 @@ class HiveMind:
         pload = message.payload
         pload.replace_route(message.route)
         self.interface.escalate(pload)
+
+        self.on_escalate(message.payload)
+
+    def on_escalate(self, message):
+        pass
 
     # HiveMind mycroft bus messages -  from slave -> master
     def handle_incoming_mycroft(self, message, client):
@@ -387,19 +399,18 @@ class HiveMind:
     # mycroft handlers  - from master -> slave
     def handle_send(self, message):
         # mycroft wants to send a HiveMessage
-        # a device can be both a master and a slave, ocasionally the
+        # a device can be both a master and a slave, occasionally the
         # protocol messages each process can't handle will be emitted to the
         # bus, the other process can then listen to them
+
         payload = message.data.get("payload")
         peer = message.data.get("peer")
         msg_type = message.data["msg_type"]
 
         if msg_type == HiveMessageType.PROPAGATE:
             self.interface.propagate(payload)
-
         elif msg_type == HiveMessageType.BROADCAST:
             self.interface.broadcast(payload)
-
         elif msg_type == HiveMessageType.ESCALATE:
             # only slaves can escalate, ignore silently
             # if this device is also a slave to something,
@@ -425,8 +436,7 @@ class HiveMind:
             message = json.dumps(message)
         if isinstance(message, str):
             message = Message.deserialize(message)
-        if message.msg_type == "complete_intent_failure":
-            message.msg_type = "hive.complete_intent_failure"
+
         message.context = message.context or {}
         peers = message.context.get("destination") or []
 

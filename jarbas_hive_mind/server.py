@@ -1,105 +1,24 @@
-import base64
-
-from jarbas_hive_mind.nodes.master import HiveMind, HiveMindProtocol
-from jarbas_hive_mind.configuration import CONFIGURATION
-from jarbas_hive_mind.settings import DEFAULT_PORT
-from jarbas_hive_mind.utils import create_self_signed_cert
-from jarbas_hive_mind.exceptions import SecureConnectionFailed, ConnectionError
-from ovos_utils.messagebus import get_mycroft_bus
-from ovos_utils.log import LOG
+import asyncio
+import ssl
 from os.path import join, exists, isfile
 
+from ovos_utils.log import LOG
+from ovos_utils.messagebus import get_mycroft_bus
 
-class HiveMindAbstractConnection:
-    _autorun = True
-
-    def __init__(self, host="0.0.0.0", port=DEFAULT_PORT,
-                 accept_self_signed=True):
-        host = host.replace("https://", "wss://").replace("http://", "ws://")
-        if "wss://" in host:
-            self._secure = True
-        else:
-            self._secure = False
-
-        host = host.replace("wss://", "").replace("ws://", "")
-        self.host = host
-        self.port = port
-        self.loop = None
-        self.ws = None
-
-        self.accept_self_signed = accept_self_signed
-
-    @property
-    def is_secure(self):
-        return self._secure
-
-    @property
-    def address(self):
-        if self.is_secure:
-            if "wss://" in self.host:
-                return self.host + u":" + str(self.port)
-            return "wss://" + self.host + u":" + str(self.port)
-        else:
-            if "ws://" in self.host:
-                return self.host + u":" + str(self.port)
-            return "ws://" + self.host + u":" + str(self.port)
-
-    @property
-    def peer(self):
-        return "tcp4:" + self.host + ":" + str(self.port)
-
-    @staticmethod
-    def get_headers(name, key):
-        # Note that keys can be shared across users
-        # name is not used for auth
-        name = name.replace(":", "__")
-        authorization = bytes(name + ":" + key, encoding="utf-8")
-        key = base64.b64encode(authorization)
-        headers = {'authorization': key}
-        return headers
-
-    def secure_connect(self, component):
-        self._secure = True
-        self.ws = component
-        self.ws.bind(self)
-        LOG.info("Connecting securely to " + self.address)
-        self.run()
-
-    def unsafe_connect(self, component):
-        self._secure = False
-        self.ws = component
-        self.ws.bind(self)
-        LOG.info("Connecting to " + self.address)
-        LOG.warning("This listener is unsecured")
-        self.run()
-
-    def run(self):
-        raise NotImplementedError
-
-    def connect(self, component):
-        try:
-            if self.is_secure:
-                try:
-                    return self.secure_connect(component)
-                except ConnectionError:
-                    raise SecureConnectionFailed
-            else:
-                return self.unsafe_connect(component)
-        except Exception as e:
-            LOG.exception(e)
-            raise e
-
-    def close(self):
-        raise NotImplementedError
+from jarbas_hive_mind.configuration import CONFIGURATION
+from jarbas_hive_mind.nodes.master import HiveMind, HiveMindProtocol
+from jarbas_hive_mind.settings import DEFAULT_PORT
+from jarbas_hive_mind.utils import create_self_signed_cert
 
 
-class HiveMindAbstractListener:
+class HiveMindWebsocketServer:
     _autorun = True
     default_factory = HiveMind
     default_protocol = HiveMindProtocol
 
     def __init__(self, port=DEFAULT_PORT, max_cons=-1, bus=None,
                  host="0.0.0.0", accept_self_signed=True):
+        self.loop = None
         self.host = host
         self.port = port
         self.max_cons = max_cons
@@ -111,6 +30,11 @@ class HiveMindAbstractListener:
                                                    "HiveMind.crt")
         self.bus = bus
         self.accept_self_signed = accept_self_signed
+
+    def _set_event_loop(self, loop=None):
+        self.loop = loop or asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+        return self.loop
 
     def bind(self, bus=None):
         # TODO read config for bus options
@@ -184,7 +108,7 @@ class HiveMindAbstractListener:
 
         if self._autorun:
             self.run()
-        return factory
+        return self.factory
 
     def unsafe_listen(self, factory=None, protocol=None):
         self._use_ssl = False
@@ -196,10 +120,29 @@ class HiveMindAbstractListener:
 
         if self._autorun:
             self.run()
-        return factory
+        return self.factory
 
     def run(self):
-        raise NotImplementedError
+        if not self.loop:
+            self._set_event_loop()
+
+        if self.is_secure:
+            ssl_context = ssl.create_default_context()
+            if self.accept_self_signed:
+                ssl_context.check_hostname = False
+                ssl_context.verify_mode = ssl.CERT_NONE
+            ssl_context.load_cert_chain(self.ssl_cert, self.ssl_key)
+
+            coro = self.loop.create_server(self.factory, self.host,
+                                           self.port, ssl=ssl_context)
+            LOG.info("HiveMind Listening: " + self.address)
+        else:
+            coro = self.loop.create_server(self.factory, self.host, self.port)
+            LOG.info("HiveMind Listening (UNSECURED): " + self.address)
+
+        self.server = self.loop.run_until_complete(coro)
+        if not self.loop.is_running():
+            self.loop.run_forever()
 
     def listen(self, factory=None, protocol=None):
         if self.is_secure:
@@ -208,6 +151,7 @@ class HiveMindAbstractListener:
             return self.unsafe_listen(factory=factory, protocol=protocol)
 
     def stop(self):
-        raise NotImplementedError
-
-
+        if self.server:
+            self.server.close()
+        if self.loop:
+            self.loop.close()
