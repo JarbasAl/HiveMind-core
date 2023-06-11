@@ -13,8 +13,9 @@
 # limitations under the License.
 from ovos_config.utils import init_module_config
 
-init_module_config("hivemind", "hivemind_listener", {"config_filename": "hivemind.conf",
-                                                     "base_folder": "hivemind"})
+init_module_config("hivemind", "hivemind_core",
+                   {"config_filename": "hivemind.conf",
+                    "base_folder": "hivemind"})
 
 from ovos_utils.log import init_service_logger
 

@@ -1,11 +1,19 @@
 import base64
+import os
+import os.path
+import random
+from os import makedirs
+from os.path import exists, join
+from socket import gethostname
 from threading import Thread
 
+from OpenSSL import crypto
 from ovos_bus_client.message import Message
 from ovos_config import Configuration
 from ovos_utils import create_daemon, wait_for_exit_signal
 from ovos_utils.log import LOG
 from ovos_utils.process_utils import ProcessStatus, StatusCallbackMap
+from ovos_utils.xdg_utils import xdg_data_home
 from poorman_handshake import HandShake, PasswordHandShake
 from pyee import EventEmitter
 from tornado import web, ioloop
@@ -15,6 +23,50 @@ from hivemind_core.database import ClientDatabase
 from hivemind_core.identity import NodeIdentity
 from hivemind_core.protocol import HiveMindListenerProtocol, HiveMindClientConnection, HiveMindNodeType
 from hivemind_presence import LocalPresence
+
+
+def create_self_signed_cert(cert_dir=f"{xdg_data_home()}/hivemind",
+                            name="hivemind"):
+    """
+    If name.crt and name.key don't exist in cert_dir, create a new
+    self-signed cert and key pair and write them into that directory.
+    """
+    CERT_FILE = name + ".crt"
+    KEY_FILE = name + ".key"
+    cert_path = join(cert_dir, CERT_FILE)
+    key_path = join(cert_dir, KEY_FILE)
+    makedirs(cert_dir, exist_ok=True)
+
+    if not exists(join(cert_dir, CERT_FILE)) \
+            or not exists(join(cert_dir, KEY_FILE)):
+        # create a key pair
+        k = crypto.PKey()
+        k.generate_key(crypto.TYPE_RSA, 1024)
+
+        # create a self-signed cert
+        cert = crypto.X509()
+        cert.get_subject().C = "PT"
+        cert.get_subject().ST = "Europe"
+        cert.get_subject().L = "Mountains"
+        cert.get_subject().O = "Jarbas AI"
+        cert.get_subject().OU = "Powered by HiveMind"
+        cert.get_subject().CN = gethostname()
+        cert.set_serial_number(random.randint(0, 2000))
+        cert.gmtime_adj_notBefore(0)
+        cert.gmtime_adj_notAfter(10 * 365 * 24 * 60 * 60)
+        cert.set_issuer(cert.get_subject())
+        cert.set_pubkey(k)
+        # TODO don't use sha1
+        cert.sign(k, 'sha1')
+
+        if not exists(cert_dir):
+            makedirs(cert_dir)
+        open(cert_path, "wb").write(
+            crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
+        open(join(cert_dir, KEY_FILE), "wb").write(
+            crypto.dump_privatekey(crypto.FILETYPE_PEM, k))
+
+    return cert_path, key_path
 
 
 def on_ready():
@@ -125,9 +177,12 @@ class HiveMindService(Thread):
                                       on_ready=ready_hook,
                                       on_error=error_hook,
                                       on_stopping=stopping_hook)
-        self.status = ProcessStatus('gui_service', callback_map=callbacks)
+        self.status = ProcessStatus('HiveMind', callback_map=callbacks)
         self.host = websocket_configs.get('host')
         self.port = websocket_configs.get('port')
+        self.ssl = websocket_configs.get('ssl', True)
+        self.cert_dir = websocket_configs.get('cert_dir') or f"{xdg_data_home()}/hivemind"
+        self.cert_name = websocket_configs.get('cert_name') or "hivemind"  # name + ".crt"/".key"
 
         self.presence = LocalPresence(name=self.identity.name,
                                       service_type=HiveMindNodeType.MIND,
@@ -144,7 +199,21 @@ class HiveMindService(Thread):
 
         routes = [("/", MessageBusEventHandler)]
         application = web.Application(routes)
-        application.listen(self.port, self.host)
+
+        if self.ssl:
+            CERT_FILE = f"{self.cert_dir}/{self.cert_name}.crt"
+            KEY_FILE = f"{self.cert_dir}/{self.cert_name}.key"
+            if not os.path.isfile(KEY_FILE):
+                CERT_FILE, KEY_FILE = create_self_signed_cert(self.cert_dir, self.cert_name)
+            LOG.debug("using ssl key at " + KEY_FILE)
+            LOG.debug("using ssl certificate at " + CERT_FILE)
+            ssl_options = {"certfile": CERT_FILE, "keyfile": KEY_FILE}
+
+            LOG.info("wss connection started")
+            application.listen(self.port, self.host, ssl_options=ssl_options)
+        else:
+            LOG.info("ws connection started")
+            application.listen(self.port, self.host)
 
         self.presence.start()
 
