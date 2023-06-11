@@ -202,7 +202,7 @@ class HiveMindListenerProtocol:
         max_version = ProtocolVersion.ONE
 
         msg = HiveMessage(HiveMessageType.HELLO,
-                          payload={"pubkey": client.handshake.pubkey,
+                          payload={"pubkey": client.handshake.pubkey, # allows any node to verify messages are signed with this
                                    "peer": client.peer,  # this identifies the connected client in ovos message.context
                                    "node_id": self.peer})
         client.send(msg)
@@ -214,8 +214,8 @@ class HiveMindListenerProtocol:
             "handshake": needs_handshake,  # tell the client it must do a handshake or connection will be dropped
             "min_protocol_version": min_version,
             "max_protocol_version": max_version,
-            "preshared_key": client.crypto_key is not None,  # do we have a pre-shared key
-            "password": client.pswd_handshake is not None,  # is password available
+            "preshared_key": client.crypto_key is not None,  # do we have a pre-shared key (V0 proto)
+            "password": client.pswd_handshake is not None,  # is password available (V1 proto, replaces pre-shared key)
             "crypto_required": self.require_crypto  # do we allow unencrypted payloads
         }
         msg = HiveMessage(HiveMessageType.HANDSHAKE, payload)
@@ -288,15 +288,20 @@ class HiveMindListenerProtocol:
                                  client: HiveMindClientConnection):
         LOG.info("handshake received, generating session key")
         payload = message.payload
-        if "pubkey" in payload:
+        if "pubkey" in payload and client.handshake is not None:
             pub = payload.pop("pubkey")
-            payload["envelope"] = client.handshake.communicate_key(pub)
-            client.crypto_key = client.handshake.aes_key  # start using new key
+            payload["envelope"] = client.handshake.generate_handshake(pub)
+            client.crypto_key = client.handshake.secret  # start using new key
 
             # client side
             # LOG.info("Received encryption key")
-            # self.handshake.receive_key(payload["envelope"])
-            # self.crypto_key = self.handshake.aes_key
+            # pub = "pubkey from HELLO message"
+            # if pub:  # validate server from known trusted public key
+            #   self.handshake.receive_and_verify(payload["envelope"], pub)
+            # else:  # implicitly trust server
+            #   self.handshake.receive_handshake(payload["envelope"], pub)
+
+            # self.crypto_key = self.handshake.secret
         elif client.pswd_handshake is not None and "envelope" in payload:
             # while the access key is transmitted, the password never is
             envelope = payload["envelope"]
