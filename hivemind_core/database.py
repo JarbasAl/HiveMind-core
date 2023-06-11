@@ -119,6 +119,12 @@ class ClientDatabase(JsonDatabaseXDG):
             return None
         return user["crypto_key"]
 
+    def get_password(self, api_key):
+        user = self.get_client_by_api_key(api_key)
+        if not user:
+            return None
+        return user["password"]
+
     def change_name(self, new_name, key):
         user = self.get_client_by_api_key(key)
         if not user:

@@ -3,14 +3,14 @@ from dataclasses import dataclass
 from enum import Enum, IntEnum
 from typing import Optional
 
-from hivemind_bus_client.message import HiveMessage, HiveMessageType
-from hivemind_bus_client.util import decrypt_from_json, encrypt_as_json
 from ovos_bus_client import MessageBusClient
 from ovos_bus_client.message import Message
 from ovos_utils.log import LOG
+from poorman_handshake import HandShake, PasswordHandShake
 from tornado.websocket import WebSocketHandler
 
-from poorman_handshake import HandShake
+from hivemind_bus_client.message import HiveMessage, HiveMessageType
+from hivemind_bus_client.util import decrypt_from_json, encrypt_as_json
 
 
 class ProtocolVersion(IntEnum):
@@ -46,6 +46,7 @@ class HiveMindClientConnection:
     name: str = "AnonClient"
     node_type: HiveMindNodeType = HiveMindNodeType.CANDIDATE_NODE
     handshake: Optional[HandShake] = None
+    pswd_handshake: Optional[PasswordHandShake] = None
     socket: Optional[WebSocketHandler] = None
     crypto_key: Optional[str] = None
     blacklist: Optional[list] = None  # list of ovos message_type to never be sent to this client
@@ -68,6 +69,9 @@ class HiveMindClientConnection:
                 payload = decrypt_from_json(self.crypto_key, payload)
             else:
                 LOG.warning("Message was unencrypted")
+                # TODO - some error if crypto is required
+        else:
+            pass  # TODO - reject anything except HELLO and HANDSHAKE
         if isinstance(payload, str):
             payload = json.loads(payload)
         return HiveMessage(**payload)
@@ -193,7 +197,7 @@ class HiveMindListenerProtocol:
                           {"source": client.peer})
         self.internal_protocol.bus.emit(message)
 
-        min_version = ProtocolVersion.ONE if client.crypto_key is None and self.require_crypto\
+        min_version = ProtocolVersion.ONE if client.crypto_key is None and self.require_crypto \
             else ProtocolVersion.ZERO
         max_version = ProtocolVersion.ONE
 
@@ -202,15 +206,21 @@ class HiveMindListenerProtocol:
                                    "peer": client.peer,  # this identifies the connected client in ovos message.context
                                    "node_id": self.peer})
         client.send(msg)
+
+        needs_handshake = not client.crypto_key and self.handshake_enabled
+
         # request client to start handshake (by sending client pubkey)
-        payload = {"handshake": not client.crypto_key and self.handshake_enabled,
-                   "min_protocol_version": min_version,
-                   "max_protocol_version": max_version,
-                   "preshared_key": client.crypto_key is not None,
-                   "crypto_required": self.require_crypto}
+        payload = {
+            "handshake": needs_handshake,  # tell the client it must do a handshake or connection will be dropped
+            "min_protocol_version": min_version,
+            "max_protocol_version": max_version,
+            "preshared_key": client.crypto_key is not None,  # do we have a pre-shared key
+            "password": client.pswd_handshake is not None,  # is password available
+            "crypto_required": self.require_crypto  # do we allow unencrypted payloads
+        }
         msg = HiveMessage(HiveMessageType.HANDSHAKE, payload)
         client.send(msg)
-        # if client is in protocol V1 then self.handle_handshake_message
+        # if client is in protocol V1 -> self.handle_handshake_message
         # clients can rotate their pubkey or session_key by sending a new handshake
 
     def handle_client_disconnected(self, client: HiveMindClientConnection):
@@ -225,9 +235,14 @@ class HiveMindListenerProtocol:
     def handle_invalid_key_connected(self, client: HiveMindClientConnection):
         LOG.error("Client provided an invalid api key")
         message = Message("hive.client.connection.error",
-                          {"error": "invalid api key",
-                           "ip": client.ip,
-                           "api_key": client.key},
+                          {"error": "invalid api key", "peer": client.peer},
+                          {"source": client.peer})
+        self.internal_protocol.bus.emit(message)
+
+    def handle_invalid_protocol_version(self, client: HiveMindClientConnection):
+        LOG.error("Client does not satisfy protocol requirements")
+        message = Message("hive.client.connection.error",
+                          {"error": "protocol error", "peer": client.peer},
                           {"source": client.peer})
         self.internal_protocol.bus.emit(message)
 

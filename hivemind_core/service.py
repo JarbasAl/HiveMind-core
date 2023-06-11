@@ -6,7 +6,7 @@ from ovos_config import Configuration
 from ovos_utils import create_daemon, wait_for_exit_signal
 from ovos_utils.log import LOG
 from ovos_utils.process_utils import ProcessStatus, StatusCallbackMap
-from poorman_handshake import HandShake
+from poorman_handshake import HandShake, PasswordHandShake
 from pyee import EventEmitter
 from tornado import web, ioloop
 from tornado.websocket import WebSocketHandler
@@ -66,9 +66,11 @@ class MessageBusEventHandler(WebSocketHandler):
         auth = self.request.uri.split("/?authorization=")[-1]
         name, key = self.decode_auth(auth)
 
+        # in regular handshake an asymmetric key pair is used
+        handshake = HandShake(HiveMindService.identity.identity_file)
         self.client = HiveMindClientConnection(key=key, name=name,
                                                ip=self.request.remote_ip, socket=self,
-                                               handshake=HandShake(HiveMindService.identity.identity_file))
+                                               handshake=handshake)
 
         with ClientDatabase() as users:
             user = users.get_client_by_api_key(key)
@@ -78,17 +80,23 @@ class MessageBusEventHandler(WebSocketHandler):
                 self.close()
                 return
 
+            self.client.crypto_key = users.get_crypto_key(key)
+            pswd = users.get_password(key)
+            if pswd:
+                # pre-shared password to derive aes_key
+                self.client.pswd_handshake = PasswordHandShake(pswd)
+
+            self.client.node_type = HiveMindNodeType.NODE
+
             if not self.client.crypto_key and \
                     not self.protocol.handshake_enabled \
                     and self.protocol.require_crypto:
-                # TODO - protocol version error handler
-                LOG.error("No crypto key registered for client, "
+                LOG.error("No pre-shared crypto key for client and handshake disabled, "
                           "but configured to require crypto!")
-                self.protocol.handle_invalid_key_connected(self.client)
+                # clients requiring handshake support might fail here
+                self.protocol.handle_invalid_protocol_version(self.client)
                 self.close()
-
-            self.client.crypto_key = users.get_crypto_key(key)
-            self.client.node_type = HiveMindNodeType.NODE
+                return
 
         self.protocol.handle_new_client(self.client)
         self.write_message(Message("connected").serialize())
