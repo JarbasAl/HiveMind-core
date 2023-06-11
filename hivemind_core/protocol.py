@@ -288,16 +288,43 @@ class HiveMindListenerProtocol:
                                  client: HiveMindClientConnection):
         LOG.info("handshake received, generating session key")
         payload = message.payload
-        pub = payload.pop("pubkey")
-        payload["envelope"] = client.handshake.communicate_key(pub)
-        msg = HiveMessage(HiveMessageType.HANDSHAKE, payload)
-        client.send(msg)  # client can regenerate crypto_key on his side now
-        client.crypto_key = client.handshake.aes_key  # start using new key
+        if "pubkey" in payload:
+            pub = payload.pop("pubkey")
+            payload["envelope"] = client.handshake.communicate_key(pub)
+            client.crypto_key = client.handshake.aes_key  # start using new key
 
-        # client side
-        # LOG.info("Received encryption key")
-        # self.handshake.receive_key(payload["envelope"])
-        # self.crypto_key = self.handshake.aes_key
+            # client side
+            # LOG.info("Received encryption key")
+            # self.handshake.receive_key(payload["envelope"])
+            # self.crypto_key = self.handshake.aes_key
+        elif client.pswd_handshake is not None and "envelope" in payload:
+            # while the access key is transmitted, the password never is
+            envelope = payload["envelope"]
+
+            if not client.pswd_handshake.receive_and_verify(envelope):
+                # TODO - different handles for invalid access key / invalid password
+                self.handle_invalid_key_connected(client)
+                client.socket.close()
+                return
+
+            payload["envelope"] = client.pswd_handshake.generate_handshake()
+
+            # key is derived safely from password in both sides
+            # the handshake is validating both ends have the same password
+            # the key is never actually transmitted
+            client.crypto_key = client.pswd_handshake.secret
+
+            # client side
+            # LOG.info("Received password envelope")
+            # self.pswd_handshake.receive_and_verify(payload["envelope"])
+            # self.crypto_key = self.pswd_handshake.secret
+        else:
+            # TODO - invalid handshake handler
+            client.socket.close()
+            return
+
+        msg = HiveMessage(HiveMessageType.HANDSHAKE, payload)
+        client.send(msg)  # client can recreate crypto_key on his side now
 
     def handle_binary_message(self, message: bytes, client: HiveMindClientConnection):
         pass  # TODO -  binary https://github.com/JarbasHiveMind/hivemind_websocket_client/pull/4
