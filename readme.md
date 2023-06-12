@@ -12,6 +12,21 @@ Work in progress documentation can be found in the [wiki](https://github.com/Jar
 
 You can also join the [Hivemind Matrix chat](https://matrix.to/#/#jarbashivemind:matrix.org) for general news, support and chit chat
 
+# Usage
+
+```
+hivemind-core --help
+Usage: hivemind-core [OPTIONS] COMMAND [ARGS]...
+
+Options:
+  --help  Show this message and exit.
+
+Commands:
+  add-keys       add a device and keys
+  delete-device  remove a device
+  list-keys      list devices and keys
+  listen         start listening for HiveMind connections
+```
 
 # HiveMind components
 

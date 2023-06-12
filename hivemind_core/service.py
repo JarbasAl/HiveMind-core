@@ -164,10 +164,10 @@ class HiveMindService(Thread):
     identity = NodeIdentity()
 
     def __init__(self, alive_hook=on_alive, started_hook=on_started, ready_hook=on_ready,
-                 error_hook=on_error, stopping_hook=on_stopping):
+                 error_hook=on_error, stopping_hook=on_stopping, websocket_config=None):
         super().__init__()
         try:
-            websocket_configs = Configuration()['websocket']
+            websocket_config = websocket_config or Configuration()['websocket']
         except KeyError as ke:
             LOG.error('No websocket configs found ({})'.format(repr(ke)))
             raise
@@ -178,17 +178,17 @@ class HiveMindService(Thread):
                                       on_error=error_hook,
                                       on_stopping=stopping_hook)
         self.status = ProcessStatus('HiveMind', callback_map=callbacks)
-        self.host = websocket_configs.get('host')
-        self.port = websocket_configs.get('port')
-        self.ssl = websocket_configs.get('ssl', True)
-        self.cert_dir = websocket_configs.get('cert_dir') or f"{xdg_data_home()}/hivemind"
-        self.cert_name = websocket_configs.get('cert_name') or "hivemind"  # name + ".crt"/".key"
+        self.host = websocket_config.get('host')
+        self.port = websocket_config.get('port')
+        self.ssl = websocket_config.get('ssl', True)
+        self.cert_dir = websocket_config.get('cert_dir') or f"{xdg_data_home()}/hivemind"
+        self.cert_name = websocket_config.get('cert_name') or "hivemind"  # name + ".crt"/".key"
 
         self.presence = LocalPresence(name=self.identity.name,
                                       service_type=HiveMindNodeType.MIND,
-                                      upnp=websocket_configs.get('upnp', False),
+                                      upnp=websocket_config.get('upnp', False),
                                       port=self.port,
-                                      zeroconf=websocket_configs.get('zeroconf', False))
+                                      zeroconf=websocket_config.get('zeroconf', False))
 
     def run(self):
         self.status.set_alive()

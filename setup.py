@@ -7,7 +7,7 @@ BASEDIR = os.path.abspath(os.path.dirname(__file__))
 def get_version():
     """ Find the version of the package"""
     version = None
-    version_file = os.path.join(BASEDIR, 'jarbas_hive_mind', 'version.py')
+    version_file = os.path.join(BASEDIR, 'hivemind_core', 'version.py')
     major, minor, build, alpha = (None, None, None, None)
     with open(version_file) as f:
         for line in f:
@@ -43,21 +43,17 @@ def required(requirements_file):
 setup(
     name='jarbas_hive_mind',
     version=get_version(),
-    packages=['jarbas_hive_mind',
-              'jarbas_hive_mind.nodes',
-              'jarbas_hive_mind.configuration',
-              'jarbas_hive_mind.database',
-              'jarbas_hive_mind.utils'],
+    packages=['hivemind_core'],
     include_package_data=True,
     install_requires=required("requirements.txt"),
     url='https://github.com/JarbasHiveMind/HiveMind-core',
     license='MIT',
     author='jarbasAI',
     author_email='jarbasai@mailfence.com',
-    description='Mesh Networking utilities for mycroft core',
+    description='Mesh Networking utilities for OpenVoiceOS',
     entry_points={
         'console_scripts': [
-            'HiveMind-listen=jarbas_hive_mind.__main__:main'
+            'hivemind-core=hivemind_core.scripts:hmcore_cmds'
         ]
     }
 )
