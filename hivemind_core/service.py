@@ -20,7 +20,7 @@ from tornado import web, ioloop
 from tornado.websocket import WebSocketHandler
 
 from hivemind_core.database import ClientDatabase
-from hivemind_core.identity import NodeIdentity
+from hivemind_bus_client.identity import NodeIdentity
 from hivemind_core.protocol import HiveMindListenerProtocol, HiveMindClientConnection, HiveMindNodeType
 from hivemind_presence import LocalPresence
 
