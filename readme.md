@@ -29,12 +29,14 @@ Commands:
 
 
 $ hivemind-core add-client --help
-Usage: hivemind-core add-client [OPTIONS] [NAME] [ACCESS_KEY] [CRYPTO_KEY]
+Usage: hivemind-core add-client [OPTIONS] [NAME] [ACCESS_KEY] [PASSWORD]
+                                [CRYPTO_KEY]
 
   add credentials for a client
 
 Options:
   --help  Show this message and exit.
+
 
 
 $ hivemind-core listen --help
