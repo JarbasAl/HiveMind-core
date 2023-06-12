@@ -13,11 +13,11 @@ def hmcore_cmds():
     pass
 
 
-@hmcore_cmds.command(help="add a device and keys")
+@hmcore_cmds.command(help="add credentials for a client", name="add-client")
 @click.argument("name", required=False)
 @click.argument("access_key", required=False)
 @click.argument("crypto_key", required=False)
-def add_keys(name, access_key, crypto_key):
+def add_client(name, access_key, crypto_key):
     key = crypto_key
     if key:
         print("WARNING: for security the encryption key should be randomly generated\n"
@@ -44,9 +44,9 @@ def add_keys(name, access_key, crypto_key):
         print("Encryption Key:", key)
 
 
-@hmcore_cmds.command(help="remove a device", name="delete-device")
+@hmcore_cmds.command(help="remove credentials for a client", name="delete-client")
 @click.argument("node_id", required=True)
-def delete_key(node_id):
+def delete_client(node_id):
     with ClientDatabase() as db:
         for x in db:
             if x["client_id"] == int(node_id):
@@ -62,8 +62,8 @@ def delete_key(node_id):
             print("Invalid Node ID!")
 
 
-@hmcore_cmds.command(help="list devices and keys", name="list-keys")
-def list_keys():
+@hmcore_cmds.command(help="list clients and credentials", name="list-clients")
+def list_clients():
     console = Console()
     table = Table(title="HiveMind Credentials:")
     table.add_column("ID", justify="center")
@@ -79,7 +79,7 @@ def list_keys():
     console.print(table)
 
 
-@hmcore_cmds.command(help="start listening for HiveMind connections")
+@hmcore_cmds.command(help="start listening for HiveMind connections", name="listen")
 @click.option("--host", help="HiveMind host", type=str,
               default=Configuration().get('websocket', {}).get("host", "0.0.0.0"))
 @click.option("--port", help="HiveMind port number", type=int,
