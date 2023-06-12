@@ -4,3 +4,6 @@ pycryptodomex
 HiveMind_presence~=0.0.2a2
 ovos-bus-client
 poorman_handshake>=0.1.0
+click
+click_default_group
+rich
