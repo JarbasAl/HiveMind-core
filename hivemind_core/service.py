@@ -41,7 +41,7 @@ def create_self_signed_cert(cert_dir=f"{xdg_data_home()}/hivemind",
             or not exists(join(cert_dir, KEY_FILE)):
         # create a key pair
         k = crypto.PKey()
-        k.generate_key(crypto.TYPE_RSA, 1024)
+        k.generate_key(crypto.TYPE_RSA, 2048)
 
         # create a self-signed cert
         cert = crypto.X509()
@@ -112,14 +112,16 @@ class MessageBusEventHandler(WebSocketHandler):
             self.protocol.handle_binary_message(message, self.client)
         else:
             message = self.client.decode(message)
+            LOG.info(f"received {self.client.peer} message: {message}")
             self.protocol.handle_message(message, self.client)
 
     def open(self):
         auth = self.request.uri.split("/?authorization=")[-1]
         name, key = self.decode_auth(auth)
+        LOG.info(f"authorizing client: {name}")
 
         # in regular handshake an asymmetric key pair is used
-        handshake = HandShake(HiveMindService.identity.identity_file)
+        handshake = HandShake(HiveMindService.identity.private_key)
         self.client = HiveMindClientConnection(key=key, name=name,
                                                ip=self.request.remote_ip, socket=self,
                                                handshake=handshake)
@@ -151,9 +153,10 @@ class MessageBusEventHandler(WebSocketHandler):
                 return
 
         self.protocol.handle_new_client(self.client)
-        self.write_message(Message("connected").serialize())
+        # self.write_message(Message("connected").serialize())
 
     def on_close(self):
+        LOG.info(f"disconnecting client: {self.client.peer}")
         self.protocol.handle_client_disconnected(self.client)
 
     def check_origin(self, origin):
@@ -204,6 +207,7 @@ class HiveMindService(Thread):
             CERT_FILE = f"{self.cert_dir}/{self.cert_name}.crt"
             KEY_FILE = f"{self.cert_dir}/{self.cert_name}.key"
             if not os.path.isfile(KEY_FILE):
+                LOG.info(f"generating self-signed SSL certificate")
                 CERT_FILE, KEY_FILE = create_self_signed_cert(self.cert_dir, self.cert_name)
             LOG.debug("using ssl key at " + KEY_FILE)
             LOG.debug("using ssl certificate at " + CERT_FILE)

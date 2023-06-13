@@ -1,7 +1,7 @@
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, IntEnum
-from typing import Optional
+from typing import Optional, Dict, List
 
 from ovos_bus_client import MessageBusClient
 from ovos_bus_client.message import Message
@@ -49,7 +49,7 @@ class HiveMindClientConnection:
     pswd_handshake: Optional[PasswordHandShake] = None
     socket: Optional[WebSocketHandler] = None
     crypto_key: Optional[str] = None
-    blacklist: Optional[list] = None  # list of ovos message_type to never be sent to this client
+    blacklist: List[str] =  field(default_factory=list) # list of ovos message_type to never be sent to this client
 
     @property
     def peer(self):
@@ -58,9 +58,14 @@ class HiveMindClientConnection:
         return f"{self.name}:{self.ip}"
 
     def send(self, message: HiveMessage):
+        LOG.info(f"sending to {self.peer}: {message}")
         payload = message.serialize()  # json string
-        if self.crypto_key:
+        if self.crypto_key and message.msg_type not in [HiveMessageType.HANDSHAKE,
+                                                    HiveMessageType.HELLO]:
             payload = encrypt_as_json(self.crypto_key, payload)  # still a json string
+            LOG.info(f"encrypted payload: {len(payload)}")
+        else:
+            LOG.warning(f"sent unencrypted!")
         self.socket.write_message(payload)
 
     def decode(self, payload: str):
@@ -191,6 +196,7 @@ class HiveMindListenerProtocol:
         self.internal_protocol.register_bus_handlers()
 
     def handle_new_client(self, client: HiveMindClientConnection):
+        LOG.info(f"new client: {client.peer}")
         self.clients[client.peer] = client
         message = Message("hive.client.connect",
                           {"ip": client.ip},
@@ -205,6 +211,7 @@ class HiveMindListenerProtocol:
                           payload={"pubkey": client.handshake.pubkey, # allows any node to verify messages are signed with this
                                    "peer": client.peer,  # this identifies the connected client in ovos message.context
                                    "node_id": self.peer})
+        LOG.info(f"saying HELLO to: {client.peer}")
         client.send(msg)
 
         needs_handshake = not client.crypto_key and self.handshake_enabled
@@ -219,6 +226,7 @@ class HiveMindListenerProtocol:
             "crypto_required": self.require_crypto  # do we allow unencrypted payloads
         }
         msg = HiveMessage(HiveMessageType.HANDSHAKE, payload)
+        LOG.info(f"starting {client.peer} HANDSHAKE: {payload}")
         client.send(msg)
         # if client is in protocol V1 -> self.handle_handshake_message
         # clients can rotate their pubkey or session_key by sending a new handshake
@@ -252,6 +260,7 @@ class HiveMindListenerProtocol:
 
         Process message from client, decide what to do internally here
         """
+        LOG.info(f"message: {message}")
         # update internal peer ID
         message.update_source_peer(client.peer)
 
@@ -306,13 +315,15 @@ class HiveMindListenerProtocol:
             # while the access key is transmitted, the password never is
             envelope = payload["envelope"]
 
-            if not client.pswd_handshake.receive_and_verify(envelope):
-                # TODO - different handles for invalid access key / invalid password
-                self.handle_invalid_key_connected(client)
-                client.socket.close()
-                return
-
             payload["envelope"] = client.pswd_handshake.generate_handshake()
+
+            client.pswd_handshake.receive_handshake(envelope)
+           # if not client.pswd_handshake.receive_and_verify(envelope):
+           #     # TODO - different handles for invalid access key / invalid password
+           #     self.handle_invalid_key_connected(client)
+           #     client.socket.close()
+        #    return
+
 
             # key is derived safely from password in both sides
             # the handshake is validating both ends have the same password

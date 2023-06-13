@@ -94,7 +94,7 @@ def list_clients():
 @click.option("--port", help="HiveMind port number", type=int,
               default=Configuration().get('websocket', {}).get("port", 5678))
 @click.option("--ssl", help="use wss://", type=bool,
-              default=Configuration().get('websocket', {}).get("ssl", True))
+              default=Configuration().get('websocket', {}).get("ssl", False))
 @click.option("--cert_dir", help="HiveMind SSL certificate directory", type=str,
               default=Configuration().get('websocket', {}).get("cert_dir", f"{xdg_data_home()}/hivemind"))
 @click.option("--cert_name", help="HiveMind SSL certificate file name", type=str,
