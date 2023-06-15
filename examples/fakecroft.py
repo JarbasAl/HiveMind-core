@@ -21,7 +21,7 @@ class HiveMindFakeCroftProtocol(HiveMindListenerProtocol):
         """
         message (Message): mycroft bus message object
         """
-        super().handle_incoming_mycroft(message, client)
+        super().handle_inject_mycroft_msg(message, client)
         answer = "mycroft is dead! long live mycroft!"
 
         payload = HiveMessage(HiveMessageType.BUS,

@@ -13,6 +13,7 @@ from OpenSSL import crypto
 from ovos_config import Configuration
 from ovos_utils.log import LOG
 from ovos_utils.process_utils import ProcessStatus, StatusCallbackMap
+from ovos_bus_client.session import Session
 from ovos_utils.xdg_utils import xdg_data_home
 from poorman_handshake import HandShake, PasswordHandShake
 from pyee import EventEmitter
@@ -124,7 +125,7 @@ class MessageBusEventHandler(WebSocketHandler):
         # in regular handshake an asymmetric key pair is used
         handshake = HandShake(HiveMindService.identity.private_key)
         self.client = HiveMindClientConnection(key=key, name=name,
-                                               ip=self.request.remote_ip, socket=self,
+                                               ip=self.request.remote_ip, socket=self, sess=Session(),
                                                handshake=handshake, loop=self.protocol.loop)
 
         with ClientDatabase() as users:

@@ -47,8 +47,8 @@ class HiveMindClientConnection:
     key: str
     ip: str
     loop: AsyncIOMainLoop
+    sess: Session  # unique session per client
     name: str = "AnonClient"
-    sess: Session = Session()  # unique session per client
     node_type: HiveMindNodeType = HiveMindNodeType.CANDIDATE_NODE
     handshake: Optional[HandShake] = None
     pswd_handshake: Optional[PasswordHandShake] = None
@@ -164,18 +164,18 @@ class HiveMindListenerInternalProtocol:
         if not isinstance(target_peers, list):
             target_peers = [target_peers]
 
+        new_sess = Session.from_message(message)
         for peer, client in self.clients.items():
-            # ovos decides the contents of the Session, let's sync any internal changes
-            if "session" in message.context:
-                new_sess = Session.from_message(message)
-                if new_sess.session_id != client.sess:
-                    new_sess.session_id = client.sess.session_id  # keep session_id, we need determinism for the peer
-                    # TODO - this should never happen right?
-                client.sess = new_sess
+            # ovos-core decides the contents of the Session,
+            # let's sync any internal changes
+            if new_sess.session_id == client.sess.session_id:
+                LOG.info(f"syncing session from ovos with {peer}")
+                client.sess = Session.from_message(message)
 
             if peer in target_peers:
                 # forward internal messages to clients if they are the target
                 LOG.info(f"{message.msg_type} - destination: {peer}")
+                message.context["source"] = "hive"
                 msg = HiveMessage(HiveMessageType.BUS,
                                   source_peer=peer,
                                   target_peers=target_peers,
@@ -361,7 +361,7 @@ class HiveMindListenerProtocol:
 
     def handle_bus_message(self, message: HiveMessage,
                            client: HiveMindClientConnection):
-        self.handle_incoming_mycroft(message.payload, client)
+        self.handle_inject_mycroft_msg(message.payload, client)
         if self.mycroft_bus_callback:
             self.mycroft_bus_callback(message.payload)
 
@@ -442,7 +442,7 @@ class HiveMindListenerProtocol:
         message.context["session"] = client.sess.serialize()
         return message
 
-    def handle_incoming_mycroft(self, message: Message, client: HiveMindClientConnection):
+    def handle_inject_mycroft_msg(self, message: Message, client: HiveMindClientConnection):
         """
         message (Message): mycroft bus message object
         """
@@ -453,6 +453,10 @@ class HiveMindListenerProtocol:
         if not client.authorize(message):
             LOG.warning(client.peer + " sent an unauthorized bus message")
             return
+
+        # ensure client specific session data is injected in query to ovos
+        message.context["session"] = client.sess.serialize()
+        message.context["destination"] = "skills"  # ensure not treated as a broadcast
 
         # send client message to internal mycroft bus
         LOG.info(f"Forwarding message to mycroft bus from client: {client.peer}")
