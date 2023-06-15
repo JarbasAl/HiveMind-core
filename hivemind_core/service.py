@@ -8,7 +8,6 @@ from socket import gethostname
 from threading import Thread
 
 from OpenSSL import crypto
-from ovos_bus_client.message import Message
 from ovos_config import Configuration
 from ovos_utils import create_daemon, wait_for_exit_signal
 from ovos_utils.log import LOG
@@ -19,10 +18,11 @@ from pyee import EventEmitter
 from tornado import web, ioloop
 from tornado.websocket import WebSocketHandler
 
-from hivemind_core.database import ClientDatabase
 from hivemind_bus_client.identity import NodeIdentity
+from hivemind_core.database import ClientDatabase
 from hivemind_core.protocol import HiveMindListenerProtocol, HiveMindClientConnection, HiveMindNodeType
 from hivemind_presence import LocalPresence
+from ovos_bus_client import MessageBusClient
 
 
 def create_self_signed_cert(cert_dir=f"{xdg_data_home()}/hivemind",
@@ -169,21 +169,21 @@ class HiveMindService(Thread):
     def __init__(self, alive_hook=on_alive, started_hook=on_started, ready_hook=on_ready,
                  error_hook=on_error, stopping_hook=on_stopping, websocket_config=None):
         super().__init__()
-        try:
-            websocket_config = websocket_config or Configuration()['websocket']
-        except KeyError as ke:
-            LOG.error('No websocket configs found ({})'.format(repr(ke)))
-            raise
-
+        websocket_config = websocket_config or Configuration().get('hivemind_websocket', {})
         callbacks = StatusCallbackMap(on_started=started_hook,
                                       on_alive=alive_hook,
                                       on_ready=ready_hook,
                                       on_error=error_hook,
                                       on_stopping=stopping_hook)
+
+        self.bus = MessageBusClient(emitter=EventEmitter())
+        self.bus.run_in_thread()
+        self.bus.connected_event.wait()
+
         self.status = ProcessStatus('HiveMind', callback_map=callbacks)
-        self.host = websocket_config.get('host')
-        self.port = websocket_config.get('port')
-        self.ssl = websocket_config.get('ssl', True)
+        self.host = websocket_config.get('host') or "0.0.0.0"
+        self.port = websocket_config.get('port') or 5678
+        self.ssl = websocket_config.get('ssl', False)
         self.cert_dir = websocket_config.get('cert_dir') or f"{xdg_data_home()}/hivemind"
         self.cert_name = websocket_config.get('cert_name') or "hivemind"  # name + ".crt"/".key"
 
@@ -196,8 +196,8 @@ class HiveMindService(Thread):
     def run(self):
         self.status.set_alive()
         self.protocol = HiveMindListenerProtocol()
-        self.protocol.bind(MessageBusEventHandler)
-        self.status.bind(self.protocol.internal_protocol.bus)
+        self.protocol.bind(MessageBusEventHandler, self.bus)
+        self.status.bind(self.bus)
         self.status.set_started()
 
         routes = [("/", MessageBusEventHandler)]

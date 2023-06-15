@@ -98,8 +98,9 @@ class HiveMindListenerInternalProtocol:
     bus: MessageBusClient
 
     def register_bus_handlers(self):
+        LOG.info("registering internal mycroft bus handlers")
         self.bus.on("hive.send.downstream", self.handle_send)
-        self.bus.on("message", self.handle_outgoing_mycroft)  # catch all
+        self.bus.on("message", self.handle_internal_mycroft)  # catch all
 
     @property
     def clients(self):
@@ -145,13 +146,13 @@ class HiveMindListenerInternalProtocol:
                     "hive.client.send.error",
                     {"error": "That client is not connected", "peer": peer}))
 
-    def handle_outgoing_mycroft(self, message: Message):
+    def handle_internal_mycroft(self, message: str):
         """ forward internal messages to clients if they are the target
         here is where the client isolation happens,
         clients only get responses to their own messages"""
-        if isinstance(message, str):
-            # "message" is a special case in ovos-bus-client that is not deserialized
-            message = Message.deserialize(message)
+
+        # "message" event is a special case in ovos-bus-client that is not deserialized
+        message = Message.deserialize(message)
 
         # forward internal messages to clients if they are the target
         message.context = message.context or {}
@@ -162,6 +163,7 @@ class HiveMindListenerInternalProtocol:
 
         for peer in peers:
             if peer and peer in self.clients:
+                LOG.info(f"{message.msg_type} - destination: {peer}")
                 client = self.clients[peer]
                 msg = HiveMessage(HiveMessageType.BUS,
                                   target_peers=peers,
