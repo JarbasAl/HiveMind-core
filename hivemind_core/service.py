@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import os
 import os.path
@@ -7,15 +8,15 @@ from os.path import exists, join
 from socket import gethostname
 from threading import Thread
 
+import tornado.platform.asyncio
 from OpenSSL import crypto
 from ovos_config import Configuration
-from ovos_utils import create_daemon, wait_for_exit_signal
 from ovos_utils.log import LOG
 from ovos_utils.process_utils import ProcessStatus, StatusCallbackMap
 from ovos_utils.xdg_utils import xdg_data_home
 from poorman_handshake import HandShake, PasswordHandShake
 from pyee import EventEmitter
-from tornado import web, ioloop
+from tornado import web
 from tornado.websocket import WebSocketHandler
 
 from hivemind_bus_client.identity import NodeIdentity
@@ -90,7 +91,7 @@ def on_stopping():
 
 
 class MessageBusEventHandler(WebSocketHandler):
-    protocol = None
+    protocol: HiveMindListenerProtocol = None
 
     def __init__(self, application, request, **kwargs):
         super().__init__(application, request, **kwargs)
@@ -124,7 +125,7 @@ class MessageBusEventHandler(WebSocketHandler):
         handshake = HandShake(HiveMindService.identity.private_key)
         self.client = HiveMindClientConnection(key=key, name=name,
                                                ip=self.request.remote_ip, socket=self,
-                                               handshake=handshake)
+                                               handshake=handshake, loop=self.protocol.loop)
 
         with ClientDatabase() as users:
             user = users.get_client_by_api_key(key)
@@ -195,7 +196,11 @@ class HiveMindService(Thread):
 
     def run(self):
         self.status.set_alive()
-        self.protocol = HiveMindListenerProtocol()
+        asyncio.set_event_loop_policy(tornado.platform.asyncio.AnyThreadEventLoopPolicy())
+
+        loop = tornado.ioloop.IOLoop.current()
+
+        self.protocol = HiveMindListenerProtocol(loop=loop)
         self.protocol.bind(MessageBusEventHandler, self.bus)
         self.status.bind(self.bus)
         self.status.set_started()
@@ -221,8 +226,9 @@ class HiveMindService(Thread):
 
         self.presence.start()
 
-        create_daemon(ioloop.IOLoop.instance().start)
         self.status.set_ready()
-        wait_for_exit_signal()
+
+        loop.start()
+
         self.status.set_stopping()
         self.presence.stop()

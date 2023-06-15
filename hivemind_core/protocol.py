@@ -6,13 +6,14 @@ from typing import Optional, List
 
 from ovos_utils.log import LOG
 from poorman_handshake import HandShake, PasswordHandShake
+from tornado.platform.asyncio import AsyncIOMainLoop
 from tornado.websocket import WebSocketHandler
 
 from hivemind_bus_client.message import HiveMessage, HiveMessageType
 from hivemind_bus_client.util import decrypt_from_json, encrypt_as_json
 from ovos_bus_client import MessageBusClient
 from ovos_bus_client.message import Message
-from ovos_bus_client.session import Session, SessionManager
+from ovos_bus_client.session import Session
 
 
 class ProtocolVersion(IntEnum):
@@ -45,6 +46,7 @@ class HiveMindClientConnection:
     """ represents a connection to the hivemind listener """
     key: str
     ip: str
+    loop: AsyncIOMainLoop
     name: str = "AnonClient"
     sess: Session = Session()  # unique session per client
     node_type: HiveMindNodeType = HiveMindNodeType.CANDIDATE_NODE
@@ -52,7 +54,7 @@ class HiveMindClientConnection:
     pswd_handshake: Optional[PasswordHandShake] = None
     socket: Optional[WebSocketHandler] = None
     crypto_key: Optional[str] = None
-    blacklist: List[str] =  field(default_factory=list) # list of ovos message_type to never be sent to this client
+    blacklist: List[str] = field(default_factory=list) # list of ovos message_type to never be sent to this client
 
     @property
     def peer(self):
@@ -69,12 +71,9 @@ class HiveMindClientConnection:
             LOG.info(f"encrypted payload: {len(payload)}")
         else:
             LOG.warning(f"sent unencrypted!")
-        try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            self.socket.write_message(payload)
-        except:
-            LOG.exception("failed to send payload")
+
+        self.loop.install()
+        self.socket.write_message(payload)
 
     def decode(self, payload: str):
         if self.crypto_key:
@@ -186,6 +185,7 @@ class HiveMindListenerInternalProtocol:
 
 @dataclass()
 class HiveMindListenerProtocol:
+    loop: AsyncIOMainLoop
     clients = {}
     internal_protocol: HiveMindListenerInternalProtocol = None
     peer: str = "master:0.0.0.0"
