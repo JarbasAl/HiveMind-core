@@ -140,7 +140,7 @@ class MessageBusEventHandler(WebSocketHandler):
                 # pre-shared password to derive aes_key
                 self.client.pswd_handshake = PasswordHandShake(pswd)
 
-            self.client.node_type = HiveMindNodeType.NODE
+            self.client.node_type = HiveMindNodeType.NODE  # TODO . placeholder
 
             if not self.client.crypto_key and \
                     not self.protocol.handshake_enabled \
