@@ -1,16 +1,17 @@
+import asyncio
 import json
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
-from typing import Optional, Dict, List
+from typing import Optional, List
 
-from ovos_bus_client import MessageBusClient
-from ovos_bus_client.message import Message
 from ovos_utils.log import LOG
 from poorman_handshake import HandShake, PasswordHandShake
 from tornado.websocket import WebSocketHandler
 
 from hivemind_bus_client.message import HiveMessage, HiveMessageType
 from hivemind_bus_client.util import decrypt_from_json, encrypt_as_json
+from ovos_bus_client import MessageBusClient
+from ovos_bus_client.message import Message
 
 
 class ProtocolVersion(IntEnum):
@@ -66,7 +67,12 @@ class HiveMindClientConnection:
             LOG.info(f"encrypted payload: {len(payload)}")
         else:
             LOG.warning(f"sent unencrypted!")
-        self.socket.write_message(payload)
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            self.socket.write_message(payload)
+        except:
+            LOG.exception("failed to send payload")
 
     def decode(self, payload: str):
         if self.crypto_key:
