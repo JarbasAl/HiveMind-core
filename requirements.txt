@@ -7,3 +7,4 @@ poorman_handshake>=0.1.0
 click
 click_default_group
 rich
+pyOpenSSL
