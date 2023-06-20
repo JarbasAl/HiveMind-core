@@ -1,14 +1,15 @@
 import json
 from functools import wraps
+from typing import List, Dict, Union, Any, Optional, Iterable
 
 from json_database import JsonDatabaseXDG
 from ovos_utils.log import LOG
 
 
 def cast_to_client_obj():
-    valid_kwargs = ("client_id", "api_key", "name",
-                    "description", "is_admin", "last_seen",
-                    "blacklist", "crypto_key", "password")
+    valid_kwargs: Iterable[str] = ("client_id", "api_key", "name",
+                                   "description", "is_admin", "last_seen",
+                                   "blacklist", "crypto_key", "password")
 
     def _handler(func):
 
@@ -37,9 +38,17 @@ def cast_to_client_obj():
 
 
 class Client:
-    def __init__(self, client_id, api_key, name="",
-                 description="", is_admin=False, last_seen=-1,
-                 blacklist=None, crypto_key=None, password=None):
+    def __init__(self, 
+                 client_id: int,
+                 api_key: str,
+                 name: str = "",
+                 description: str = "",
+                 is_admin: bool = False,
+                 last_seen: float = -1,
+                 blacklist: Optional[Dict[str, List[str]]] = None,
+                 crypto_key: Optional[str] = None,
+                 password: Optional[str] = None):
+
         self.client_id = client_id
         self.description = description
         self.api_key = api_key
@@ -54,23 +63,23 @@ class Client:
             "intents": []
         }
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> Any:
         return self.__dict__.get(item)
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: Any):
         if hasattr(self, key):
             setattr(self, key, value)
         else:
             raise ValueError("unknown property")
 
-    def __eq__(self, other):
+    def __eq__(self, other: Union[object, dict]) -> bool:
         if not isinstance(other, dict):
             other = other.__dict__
         if self.__dict__ == other:
             return True
         return False
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(self.__dict__)
 
 
@@ -78,16 +87,16 @@ class ClientDatabase(JsonDatabaseXDG):
     def __init__(self):
         super().__init__("clients", subfolder="hivemind")
 
-    def update_timestamp(self, key, timestamp):
+    def update_timestamp(self, key: str, timestamp: float) -> bool:
         user = self.get_client_by_api_key(key)
-        if not user:
+        if user is None:
             return False
         item_id = self.get_item_id(user)
         user["last_seen"] = timestamp
         self.update_item(item_id, user)
         return True
 
-    def delete_client(self, key):
+    def delete_client(self, key: str) -> bool:
         user = self.get_client_by_api_key(key)
         if user:
             item_id = self.get_item_id(user)
@@ -95,76 +104,83 @@ class ClientDatabase(JsonDatabaseXDG):
             return True
         return False
 
-    def change_key(self, old_key, new_key):
+    def change_key(self, old_key: str, new_key: str) -> bool:
         user = self.get_client_by_api_key(old_key)
-        if not user:
+        if user is None:
             return False
         item_id = self.get_item_id(user)
         user["api_key"] = new_key
         self.update_item(item_id, user)
         return True
 
-    def change_crypto_key(self, api_key, new_key):
+    def change_crypto_key(self, api_key: str, new_key: str) -> bool:
         user = self.get_client_by_api_key(api_key)
-        if not user:
+        if user is None:
             return False
         item_id = self.get_item_id(user)
         user["crypto_key"] = new_key
         self.update_item(item_id, user)
         return True
 
-    def get_crypto_key(self, api_key):
+    def get_crypto_key(self, api_key: str) -> Optional[str]:
         user = self.get_client_by_api_key(api_key)
-        if not user:
+        if user is None:
             return None
         return user["crypto_key"]
 
-    def get_password(self, api_key):
+    def get_password(self, api_key: str) -> Optional[str]:
         user = self.get_client_by_api_key(api_key)
-        if not user:
+        if user is None:
             return None
         return user["password"]
 
-    def change_name(self, new_name, key):
+    def change_name(self, new_name: str, key: str) -> bool:
         user = self.get_client_by_api_key(key)
-        if not user:
+        if user is None:
             return False
         item_id = self.get_item_id(user)
         user["name"] = new_name
         self.update_item(item_id, user)
         return True
 
-    def change_blacklist(self, blacklist, key):
+    def change_blacklist(self,
+                         blacklist: Union[str, Dict[str, Any]],
+                         key: str) -> bool:
         if isinstance(blacklist, dict):
             blacklist = json.dumps(blacklist)
         user = self.get_client_by_api_key(key)
-        if not user:
+        if user is None:
             return False
         item_id = self.get_item_id(user)
         user["blacklist"] = blacklist
         self.update_item(item_id, user)
         return True
 
-    def get_blacklist_by_api_key(self, api_key):
+    def get_blacklist_by_api_key(self, api_key: str):
         search = self.search_by_value("api_key", api_key)
         if len(search):
             return search[0]["blacklist"]
         return None
 
     @cast_to_client_obj()
-    def get_client_by_api_key(self, api_key):
+    def get_client_by_api_key(self, api_key: str) -> Optional[Client]:
         search = self.search_by_value("api_key", api_key)
         if len(search):
             return search[0]
         return None
 
     @cast_to_client_obj()
-    def get_clients_by_name(self, name):
+    def get_clients_by_name(self, name: str) -> List[Client]:
         return self.search_by_value("name", name)
 
     @cast_to_client_obj()
-    def add_client(self, name=None, key="", admin=None,
-                   blacklist=None, crypto_key=None, password=None):
+    def add_client(self,
+                   name: str,
+                   key: str = "",
+                   admin: bool = False,
+                   blacklist: Optional[Dict[str, Any]] = None,
+                   crypto_key: Optional[str] = None,
+                   password: Optional[str] = None) -> Client:
 
         user = self.get_client_by_api_key(key)
         item_id = self.get_item_id(user)
@@ -190,7 +206,7 @@ class ClientDatabase(JsonDatabaseXDG):
             self.add_item(user)
         return user
 
-    def total_clients(self):
+    def total_clients(self) -> int:
         return len(self)
 
     def __enter__(self):

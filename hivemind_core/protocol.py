@@ -1,12 +1,11 @@
-import asyncio
 import json
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
-from typing import Optional, List
+from typing import List, Dict, Optional
 
 from ovos_utils.log import LOG
 from poorman_handshake import HandShake, PasswordHandShake
-from tornado.platform.asyncio import AsyncIOMainLoop
+from tornado import ioloop
 from tornado.websocket import WebSocketHandler
 
 from hivemind_bus_client.message import HiveMessage, HiveMessageType
@@ -46,7 +45,7 @@ class HiveMindClientConnection:
     """ represents a connection to the hivemind listener """
     key: str
     ip: str
-    loop: AsyncIOMainLoop
+    loop: ioloop.IOLoop
     sess: Session  # unique session per client
     name: str = "AnonClient"
     node_type: HiveMindNodeType = HiveMindNodeType.CANDIDATE_NODE
@@ -57,7 +56,7 @@ class HiveMindClientConnection:
     blacklist: List[str] = field(default_factory=list) # list of ovos message_type to never be sent to this client
 
     @property
-    def peer(self):
+    def peer(self) -> str:
         # friendly id that ovos components can use to refer to this connection
         # this is how ovos refers to connected nodes in message.context
         return f"{self.name}:{self.ip}::{self.sess.session_id}"
@@ -75,7 +74,7 @@ class HiveMindClientConnection:
         self.loop.install()
         self.socket.write_message(payload)
 
-    def decode(self, payload: str):
+    def decode(self, payload: str) -> HiveMessage:
         if self.crypto_key:
             if "ciphertext" in payload:
                 payload = decrypt_from_json(self.crypto_key, payload)
@@ -88,7 +87,7 @@ class HiveMindClientConnection:
             payload = json.loads(payload)
         return HiveMessage(**payload)
 
-    def authorize(self, message: Message):
+    def authorize(self, message: Message) -> bool:
         """ parse the message being injected into ovos-core bus
         if this client is not authorized to inject it return False"""
         if message.msg_type in self.blacklist:
@@ -110,7 +109,7 @@ class HiveMindListenerInternalProtocol:
         self.bus.on("message", self.handle_internal_mycroft)  # catch all
 
     @property
-    def clients(self):
+    def clients(self) -> Dict[str, HiveMindClientConnection]:
         return HiveMindListenerProtocol.clients
 
     # mycroft handlers  - from master -> slave
@@ -185,9 +184,9 @@ class HiveMindListenerInternalProtocol:
 
 @dataclass()
 class HiveMindListenerProtocol:
-    loop: AsyncIOMainLoop
-    clients = {}
-    internal_protocol: HiveMindListenerInternalProtocol = None
+    loop: ioloop.IOLoop
+    clients: dict = field(default_factory=dict)
+    internal_protocol: Optional[HiveMindListenerInternalProtocol] = None
     peer: str = "master:0.0.0.0"
 
     require_crypto: bool = True  # throw error if crypto key not available
@@ -332,11 +331,11 @@ class HiveMindListenerProtocol:
             payload["envelope"] = client.pswd_handshake.generate_handshake()
 
             client.pswd_handshake.receive_handshake(envelope)
-           # if not client.pswd_handshake.receive_and_verify(envelope):
-           #     # TODO - different handles for invalid access key / invalid password
-           #     self.handle_invalid_key_connected(client)
-           #     client.socket.close()
-        #    return
+            # if not client.pswd_handshake.receive_and_verify(envelope):
+            #     # TODO - different handles for invalid access key / invalid password
+            #     self.handle_invalid_key_connected(client)
+            #     client.socket.close()
+            #     return
 
 
             # key is derived safely from password in both sides

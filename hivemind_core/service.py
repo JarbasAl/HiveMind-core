@@ -7,8 +7,8 @@ from os import makedirs
 from os.path import exists, join
 from socket import gethostname
 from threading import Thread
+from typing import Callable, Dict, Any, Optional, Tuple
 
-import tornado.platform.asyncio
 from OpenSSL import crypto
 from ovos_config import Configuration
 from ovos_utils.log import LOG
@@ -17,7 +17,8 @@ from ovos_bus_client.session import Session
 from ovos_utils.xdg_utils import xdg_data_home
 from poorman_handshake import HandShake, PasswordHandShake
 from pyee import EventEmitter
-from tornado import web
+from tornado import web, ioloop
+from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 from tornado.websocket import WebSocketHandler
 
 from hivemind_bus_client.identity import NodeIdentity
@@ -28,7 +29,7 @@ from ovos_bus_client import MessageBusClient
 
 
 def create_self_signed_cert(cert_dir=f"{xdg_data_home()}/hivemind",
-                            name="hivemind"):
+                            name="hivemind") -> Tuple[str, str]:
     """
     If name.crt and name.key don't exist in cert_dir, create a new
     self-signed cert and key pair and write them into that directory.
@@ -92,14 +93,14 @@ def on_stopping():
 
 
 class MessageBusEventHandler(WebSocketHandler):
-    protocol: HiveMindListenerProtocol = None
+    protocol: Optional[HiveMindListenerProtocol] = None
 
     def __init__(self, application, request, **kwargs):
         super().__init__(application, request, **kwargs)
         self.emitter = EventEmitter()
 
     @staticmethod
-    def decode_auth(auth):
+    def decode_auth(auth) -> Tuple[str, str]:
         userpass_encoded = bytes(auth, encoding="utf-8")
         userpass_decoded = base64.b64decode(userpass_encoded).decode("utf-8")
         name, key = userpass_decoded.split(":")
@@ -161,17 +162,24 @@ class MessageBusEventHandler(WebSocketHandler):
         LOG.info(f"disconnecting client: {self.client.peer}")
         self.protocol.handle_client_disconnected(self.client)
 
-    def check_origin(self, origin):
+    def check_origin(self, origin) -> bool:
         return True
 
 
 class HiveMindService(Thread):
     identity = NodeIdentity()
 
-    def __init__(self, alive_hook=on_alive, started_hook=on_started, ready_hook=on_ready,
-                 error_hook=on_error, stopping_hook=on_stopping, websocket_config=None):
+    def __init__(self, 
+                 alive_hook: Callable = on_alive,
+                 started_hook: Callable = on_started,
+                 ready_hook: Callable = on_ready,
+                 error_hook: Callable = on_error,
+                 stopping_hook: Callable = on_stopping,
+                 websocket_config: Optional[Dict[str, Any]] = None):
+
         super().__init__()
-        websocket_config = websocket_config or Configuration().get('hivemind_websocket', {})
+        websocket_config = websocket_config or \
+                Configuration().get('hivemind_websocket', {})
         callbacks = StatusCallbackMap(on_started=started_hook,
                                       on_alive=alive_hook,
                                       on_ready=ready_hook,
@@ -197,16 +205,15 @@ class HiveMindService(Thread):
 
     def run(self):
         self.status.set_alive()
-        asyncio.set_event_loop_policy(tornado.platform.asyncio.AnyThreadEventLoopPolicy())
-
-        loop = tornado.ioloop.IOLoop.current()
+        asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
+        loop = ioloop.IOLoop.current()
 
         self.protocol = HiveMindListenerProtocol(loop=loop)
         self.protocol.bind(MessageBusEventHandler, self.bus)
         self.status.bind(self.bus)
         self.status.set_started()
 
-        routes = [("/", MessageBusEventHandler)]
+        routes: list = [("/", MessageBusEventHandler)]
         application = web.Application(routes)
 
         if self.ssl:
