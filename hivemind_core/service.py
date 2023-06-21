@@ -137,11 +137,12 @@ class MessageBusEventHandler(WebSocketHandler):
                 self.close()
                 return
 
-            self.client.crypto_key = users.get_crypto_key(key)
-            pswd = users.get_password(key)
-            if pswd:
+            self.client.crypto_key = user.crypto_key
+            self.client.blacklist = user.blacklist.get("messages", [])
+            self.client.allowed_types = user.allowed_types
+            if user.password:
                 # pre-shared password to derive aes_key
-                self.client.pswd_handshake = PasswordHandShake(pswd)
+                self.client.pswd_handshake = PasswordHandShake(user.password)
 
             self.client.node_type = HiveMindNodeType.NODE  # TODO . placeholder
 

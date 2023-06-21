@@ -3,6 +3,7 @@ import os
 import click
 from ovos_utils.xdg_utils import xdg_data_home
 from rich.console import Console
+from rich.prompt import Prompt
 from rich.table import Table
 
 from hivemind_core.database import ClientDatabase
@@ -51,7 +52,57 @@ def add_client(name, access_key, password, crypto_key):
         print("WARNING: Encryption Key is deprecated, only use if your client does not support password")
 
 
-@hmcore_cmds.command(help="remove credentials for a client (numeric unique ID)", name="delete-client")
+@hmcore_cmds.command(help="allow message types sent from a client", name="allow-msg")
+@click.argument("msg_type", required=True, type=str)
+@click.argument("node_id", required=False, type=int)
+def allow_msg(msg_type, node_id):
+    if not node_id:
+        # list clients and prompt for id using rich
+        table = Table(title="HiveMind Clients")
+        table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+        table.add_column("Name", style="magenta")
+        table.add_column("Allowed Msg Types", style="yellow")
+        _choices = []
+        for client in ClientDatabase():
+            if client["client_id"] != -1:
+                table.add_row(str(client["client_id"]),
+                              client["name"],
+                              str(client.get("allowed_types", [])))
+                _choices.append(str(client["client_id"]))
+
+        if not _choices:
+            print("No clients found!")
+            exit()
+        elif len(_choices) > 1:
+            console = Console()
+            console.print(table)
+            _exit = str(max(int(i) for i in _choices) + 1)
+            node_id = Prompt.ask(f"To which client you want to add '{msg_type}'? ({_exit}='Exit')",
+                                 choices=_choices + [_exit])
+            if node_id == _exit:
+                console.print("User exit", style="red")
+                exit()
+        else:
+            node_id = _choices[0]
+
+    with ClientDatabase() as db:
+        for client in db:
+            if client["client_id"] == int(node_id):
+                allowed_types = client.get("allowed_types", [])
+                if msg_type in allowed_types:
+                    print(f"Client {client['name']} already allowed '{msg_type}'")
+                    exit()
+
+                allowed_types.append(msg_type)
+                client["allowed_types"] = allowed_types
+                item_id = db.get_item_id(client)
+                db.update_item(item_id, client)
+                print(f"Allowed '{msg_type}' for {client['name']}")
+                break
+
+
+@hmcore_cmds.command(help="remove credentials for a client (numeric unique ID)",
+                     name="delete-client")
 @click.argument("node_id", required=True, type=int)
 def delete_client(node_id):
     with ClientDatabase() as db:

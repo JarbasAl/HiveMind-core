@@ -54,6 +54,7 @@ class HiveMindClientConnection:
     socket: Optional[WebSocketHandler] = None
     crypto_key: Optional[str] = None
     blacklist: List[str] = field(default_factory=list) # list of ovos message_type to never be sent to this client
+    allowed_types: List[str] = field(default_factory=list) # list of ovos message_type to allow to be sent from this client
 
     @property
     def peer(self) -> str:
@@ -62,6 +63,16 @@ class HiveMindClientConnection:
         return f"{self.name}:{self.ip}::{self.sess.session_id}"
 
     def send(self, message: HiveMessage):
+        # TODO some cleaning around HiveMessage
+        if isinstance(message.payload, dict):
+            _msg_type = message.payload.get("type")
+        else:
+            _msg_type = message.payload.msg_type
+
+        if _msg_type in self.blacklist:
+            return LOG.debug(f"message type {_msg_type} "
+                             f"is blacklisted for {self.peer}")
+
         LOG.info(f"sending to {self.peer}: {message}")
         payload = message.serialize()  # json string
         if self.crypto_key and message.msg_type not in [HiveMessageType.HANDSHAKE,
@@ -90,7 +101,7 @@ class HiveMindClientConnection:
     def authorize(self, message: Message) -> bool:
         """ parse the message being injected into ovos-core bus
         if this client is not authorized to inject it return False"""
-        if message.msg_type in self.blacklist:
+        if message.msg_type not in self.allowed_types:
             return False
 
         # TODO check intent / skill that will trigger
@@ -185,7 +196,7 @@ class HiveMindListenerInternalProtocol:
 @dataclass()
 class HiveMindListenerProtocol:
     loop: ioloop.IOLoop
-    clients: dict = field(default_factory=dict)
+    clients = {}
     internal_protocol: Optional[HiveMindListenerInternalProtocol] = None
     peer: str = "master:0.0.0.0"
 
@@ -455,7 +466,10 @@ class HiveMindListenerProtocol:
 
         # ensure client specific session data is injected in query to ovos
         message.context["session"] = client.sess.serialize()
-        message.context["destination"] = "skills"  # ensure not treated as a broadcast
+        if message.msg_type == "speak":
+            message.context["destination"] = ["audio"]
+        elif message.context.get("destination") is None:    
+            message.context["destination"] = "skills"  # ensure not treated as a broadcast
 
         # send client message to internal mycroft bus
         LOG.info(f"Forwarding message to mycroft bus from client: {client.peer}")

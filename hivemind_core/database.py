@@ -9,7 +9,8 @@ from ovos_utils.log import LOG
 def cast_to_client_obj():
     valid_kwargs: Iterable[str] = ("client_id", "api_key", "name",
                                    "description", "is_admin", "last_seen",
-                                   "blacklist", "crypto_key", "password")
+                                   "blacklist", "allowed_types", "crypto_key",
+                                   "password")
 
     def _handler(func):
 
@@ -46,6 +47,7 @@ class Client:
                  is_admin: bool = False,
                  last_seen: float = -1,
                  blacklist: Optional[Dict[str, List[str]]] = None,
+                 allowed_types: Optional[List[str]] = None,
                  crypto_key: Optional[str] = None,
                  password: Optional[str] = None):
 
@@ -62,6 +64,9 @@ class Client:
             "skills": [],
             "intents": []
         }
+        self.allowed_types = allowed_types or ["recognizer_loop:utterance"]
+        if "recognizer_loop:utterance" not in self.allowed_types:
+            self.allowed_types.append("recognizer_loop:utterance")
 
     def __getitem__(self, item: str) -> Any:
         return self.__dict__.get(item)
@@ -179,6 +184,7 @@ class ClientDatabase(JsonDatabaseXDG):
                    key: str = "",
                    admin: bool = False,
                    blacklist: Optional[Dict[str, Any]] = None,
+                   allowed_types: Optional[List[str]] = None,
                    crypto_key: Optional[str] = None,
                    password: Optional[str] = None) -> Client:
 
@@ -191,6 +197,8 @@ class ClientDatabase(JsonDatabaseXDG):
                 user["name"] = name
             if blacklist:
                 user["blacklist"] = blacklist
+            if allowed_types:
+                user["allowed_types"] = allowed_types
             if admin is not None:
                 user["is_admin"] = admin
             if crypto_key:
@@ -202,7 +210,8 @@ class ClientDatabase(JsonDatabaseXDG):
             user = Client(api_key=key, name=name,
                           blacklist=blacklist, crypto_key=crypto_key,
                           client_id=self.total_clients() + 1,
-                          is_admin=admin, password=password)
+                          is_admin=admin, password=password,
+                          allowed_types=allowed_types)
             self.add_item(user)
         return user
 
