@@ -3,16 +3,17 @@ from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from typing import List, Dict, Optional
 
+from ovos_bus_client import MessageBusClient
+from ovos_bus_client.message import Message
+from ovos_bus_client.session import Session
 from ovos_utils.log import LOG
 from poorman_handshake import HandShake, PasswordHandShake
 from tornado import ioloop
 from tornado.websocket import WebSocketHandler
 
 from hivemind_bus_client.message import HiveMessage, HiveMessageType
-from hivemind_bus_client.util import decrypt_from_json, encrypt_as_json
-from ovos_bus_client import MessageBusClient
-from ovos_bus_client.message import Message
-from ovos_bus_client.session import Session
+from hivemind_bus_client.serialization import decode_bitstring
+from hivemind_bus_client.util import decrypt_bin, decrypt_from_json, encrypt_as_json
 
 
 class ProtocolVersion(IntEnum):
@@ -55,6 +56,7 @@ class HiveMindClientConnection:
     crypto_key: Optional[str] = None
     blacklist: List[str] = field(default_factory=list) # list of ovos message_type to never be sent to this client
     allowed_types: List[str] = field(default_factory=list) # list of ovos message_type to allow to be sent from this client
+    binarize: bool = False
 
     @property
     def peer(self) -> str:
@@ -76,7 +78,7 @@ class HiveMindClientConnection:
         LOG.info(f"sending to {self.peer}: {message}")
         payload = message.serialize()  # json string
         if self.crypto_key and message.msg_type not in [HiveMessageType.HANDSHAKE,
-                                                    HiveMessageType.HELLO]:
+                                                        HiveMessageType.HELLO]:
             payload = encrypt_as_json(self.crypto_key, payload)  # still a json string
             LOG.info(f"encrypted payload: {len(payload)}")
         else:
@@ -87,14 +89,21 @@ class HiveMindClientConnection:
 
     def decode(self, payload: str) -> HiveMessage:
         if self.crypto_key:
-            if "ciphertext" in payload:
+            # handle binary encryption
+            if isinstance(payload, bytes):
+                payload = decrypt_bin(self.crypto_key, payload)
+            # handle json encryption
+            elif "ciphertext" in payload:
                 payload = decrypt_from_json(self.crypto_key, payload)
             else:
                 LOG.warning("Message was unencrypted")
                 # TODO - some error if crypto is required
         else:
             pass  # TODO - reject anything except HELLO and HANDSHAKE
-        if isinstance(payload, str):
+
+        if isinstance(payload, bytes):
+            return decode_bitstring(payload)
+        elif isinstance(payload, str):
             payload = json.loads(payload)
         return HiveMessage(**payload)
 
@@ -233,7 +242,8 @@ class HiveMindListenerProtocol:
         max_version = ProtocolVersion.ONE
 
         msg = HiveMessage(HiveMessageType.HELLO,
-                          payload={"pubkey": client.handshake.pubkey, # allows any node to verify messages are signed with this
+                          payload={"pubkey": client.handshake.pubkey,
+                                   # allows any node to verify messages are signed with this
                                    "peer": client.peer,  # this identifies the connected client in ovos message.context
                                    "node_id": self.peer})
         LOG.info(f"saying HELLO to: {client.peer}")
@@ -307,6 +317,8 @@ class HiveMindListenerProtocol:
             self.handle_broadcast_message(message, client)
         elif message.msg_type == HiveMessageType.ESCALATE:
             self.handle_escalate_message(message, client)
+        elif message.msg_type == HiveMessageType.BINARY:
+            self.handle_binary_message(message, client)
         else:
             self.handle_unknown_message(message, client)
 
@@ -317,6 +329,9 @@ class HiveMindListenerProtocol:
 
         message (HiveMessage): HiveMind message object
         """
+
+    def handle_binary_message(self, message: HiveMessage, client: HiveMindClientConnection):
+        assert message.msg_type == HiveMessageType.BINARY
 
     def handle_handshake_message(self, message: HiveMessage,
                                  client: HiveMindClientConnection):
@@ -338,6 +353,7 @@ class HiveMindListenerProtocol:
         elif client.pswd_handshake is not None and "envelope" in payload:
             # while the access key is transmitted, the password never is
             envelope = payload["envelope"]
+            client.binarize = payload.get("binarize", False)
 
             payload["envelope"] = client.pswd_handshake.generate_handshake()
 
@@ -347,7 +363,6 @@ class HiveMindListenerProtocol:
             #     self.handle_invalid_key_connected(client)
             #     client.socket.close()
             #     return
-
 
             # key is derived safely from password in both sides
             # the handshake is validating both ends have the same password
@@ -365,9 +380,6 @@ class HiveMindListenerProtocol:
 
         msg = HiveMessage(HiveMessageType.HANDSHAKE, payload)
         client.send(msg)  # client can recreate crypto_key on his side now
-
-    def handle_binary_message(self, message: bytes, client: HiveMindClientConnection):
-        pass  # TODO -  binary https://github.com/JarbasHiveMind/hivemind_websocket_client/pull/4
 
     def handle_bus_message(self, message: HiveMessage,
                            client: HiveMindClientConnection):
@@ -468,7 +480,7 @@ class HiveMindListenerProtocol:
         message.context["session"] = client.sess.serialize()
         if message.msg_type == "speak":
             message.context["destination"] = ["audio"]
-        elif message.context.get("destination") is None:    
+        elif message.context.get("destination") is None:
             message.context["destination"] = "skills"  # ensure not treated as a broadcast
 
         # send client message to internal mycroft bus
