@@ -12,8 +12,8 @@ from tornado import ioloop
 from tornado.websocket import WebSocketHandler
 
 from hivemind_bus_client.message import HiveMessage, HiveMessageType
-from hivemind_bus_client.serialization import decode_bitstring
-from hivemind_bus_client.util import decrypt_bin, decrypt_from_json, encrypt_as_json
+from hivemind_bus_client.serialization import decode_bitstring, get_bitstring
+from hivemind_bus_client.util import decrypt_bin, encrypt_bin, decrypt_from_json, encrypt_as_json
 
 
 class ProtocolVersion(IntEnum):
@@ -54,8 +54,8 @@ class HiveMindClientConnection:
     pswd_handshake: Optional[PasswordHandShake] = None
     socket: Optional[WebSocketHandler] = None
     crypto_key: Optional[str] = None
-    blacklist: List[str] = field(default_factory=list) # list of ovos message_type to never be sent to this client
-    allowed_types: List[str] = field(default_factory=list) # list of ovos message_type to allow to be sent from this client
+    blacklist: List[str] = field(default_factory=list)  # list of ovos message_type to never be sent to this client
+    allowed_types: List[str] = field(default_factory=list)  # list of ovos message_type to allow to be sent from this client
     binarize: bool = False
 
     @property
@@ -79,10 +79,14 @@ class HiveMindClientConnection:
         payload = message.serialize()  # json string
         if self.crypto_key and message.msg_type not in [HiveMessageType.HANDSHAKE,
                                                         HiveMessageType.HELLO]:
-            payload = encrypt_as_json(self.crypto_key, payload)  # still a json string
+            if self.binarize:
+                payload = get_bitstring(message.msg_type, message.payload)
+                payload = encrypt_bin(self.crypto_key, payload)
+            else:
+                payload = encrypt_as_json(self.crypto_key, payload)  # still a json string
             LOG.info(f"encrypted payload: {len(payload)}")
         else:
-            LOG.warning(f"sent unencrypted!")
+            LOG.debug(f"sent unencrypted!")
 
         self.loop.install()
         self.socket.write_message(payload)
