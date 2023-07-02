@@ -110,13 +110,9 @@ class MessageBusEventHandler(WebSocketHandler):
         self.emitter.on(event_name, handler)
 
     def on_message(self, message):
-        if isinstance(message, bytes):
-            LOG.info(f"received binary data: {len(message)}")
-            self.protocol.handle_binary_message(message, self.client)
-        else:
-            message = self.client.decode(message)
-            LOG.info(f"received {self.client.peer} message: {message}")
-            self.protocol.handle_message(message, self.client)
+        message = self.client.decode(message)
+        LOG.info(f"received {self.client.peer} message: {message}")
+        self.protocol.handle_message(message, self.client)
 
     def open(self):
         auth = self.request.uri.split("/?authorization=")[-1]
