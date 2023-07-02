@@ -256,6 +256,7 @@ class HiveMindListenerProtocol:
             "handshake": needs_handshake,  # tell the client it must do a handshake or connection will be dropped
             "min_protocol_version": min_version,
             "max_protocol_version": max_version,
+            "binarize": True,  # report we support the binarization scheme
             "preshared_key": client.crypto_key is not None,  # do we have a pre-shared key (V0 proto)
             "password": client.pswd_handshake is not None,  # is password available (V1 proto, replaces pre-shared key)
             "crypto_required": self.require_crypto  # do we allow unencrypted payloads
