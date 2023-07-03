@@ -128,7 +128,7 @@ def list_clients():
     table.add_column("ID", justify="center")
     table.add_column("Name", justify="center")
     table.add_column("Access Key", justify="center")
-    table.add_column("Passwordy", justify="center")
+    table.add_column("Password", justify="center")
     table.add_column("Crypto Key", justify="center")
 
     with ClientDatabase() as db:
