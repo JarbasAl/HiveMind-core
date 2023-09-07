@@ -3,7 +3,7 @@ from hivemind_core.service import HiveMindService
 
 def main():
     service = HiveMindService()
-    service.start()
+    service.run()
 
 
 if __name__ == "__main__":

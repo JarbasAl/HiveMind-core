@@ -16,7 +16,7 @@ from ovos_utils.process_utils import ProcessStatus, StatusCallbackMap
 from ovos_bus_client.session import Session
 from ovos_utils.xdg_utils import xdg_data_home
 from poorman_handshake import HandShake, PasswordHandShake
-from pyee import EventEmitter
+from pyee import EventEmitter, ExecutorEventEmitter, AsyncIOEventEmitter
 from tornado import web, ioloop
 from tornado.platform.asyncio import AnyThreadEventLoopPolicy
 from tornado.websocket import WebSocketHandler
@@ -95,10 +95,6 @@ def on_stopping():
 class MessageBusEventHandler(WebSocketHandler):
     protocol: Optional[HiveMindListenerProtocol] = None
 
-    def __init__(self, application, request, **kwargs):
-        super().__init__(application, request, **kwargs)
-        self.emitter = EventEmitter()
-
     @staticmethod
     def decode_auth(auth) -> Tuple[str, str]:
         userpass_encoded = bytes(auth, encoding="utf-8")
@@ -106,15 +102,12 @@ class MessageBusEventHandler(WebSocketHandler):
         name, key = userpass_decoded.split(":")
         return name, key
 
-    def on(self, event_name, handler):
-        self.emitter.on(event_name, handler)
-
-    def on_message(self, message):
+    async def on_message(self, message):
         message = self.client.decode(message)
         LOG.info(f"received {self.client.peer} message: {message}")
-        self.protocol.handle_message(message, self.client)
+        await self.protocol.handle_message(message, self.client)
 
-    def open(self):
+    async def open(self):
         auth = self.request.uri.split("/?authorization=")[-1]
         name, key = self.decode_auth(auth)
         LOG.info(f"authorizing client: {name}")
@@ -152,7 +145,7 @@ class MessageBusEventHandler(WebSocketHandler):
                 self.close()
                 return
 
-        self.protocol.handle_new_client(self.client)
+        await self.protocol.handle_new_client(self.client)
         # self.write_message(Message("connected").serialize())
 
     def on_close(self):
@@ -163,7 +156,7 @@ class MessageBusEventHandler(WebSocketHandler):
         return True
 
 
-class HiveMindService(Thread):
+class HiveMindService:
     identity = NodeIdentity()
 
     def __init__(self, 
@@ -174,7 +167,6 @@ class HiveMindService(Thread):
                  stopping_hook: Callable = on_stopping,
                  websocket_config: Optional[Dict[str, Any]] = None):
 
-        super().__init__()
         websocket_config = websocket_config or \
                 Configuration().get('hivemind_websocket', {})
         callbacks = StatusCallbackMap(on_started=started_hook,
@@ -182,10 +174,6 @@ class HiveMindService(Thread):
                                       on_ready=ready_hook,
                                       on_error=error_hook,
                                       on_stopping=stopping_hook)
-
-        self.bus = MessageBusClient(emitter=EventEmitter())
-        self.bus.run_in_thread()
-        self.bus.connected_event.wait()
 
         self.status = ProcessStatus('HiveMind', callback_map=callbacks)
         self.host = websocket_config.get('host') or "0.0.0.0"
@@ -200,10 +188,18 @@ class HiveMindService(Thread):
                                       port=self.port,
                                       zeroconf=websocket_config.get('zeroconf', False))
 
+    def connect_to_mycroft(self):
+        self.bus = MessageBusClient(emitter=AsyncIOEventEmitter())
+        self.bus.run_in_thread()
+        self.bus.connected_event.wait()
+
     def run(self):
         self.status.set_alive()
         asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
+
         loop = ioloop.IOLoop.current()
+
+        self.connect_to_mycroft()
 
         self.protocol = HiveMindListenerProtocol(loop=loop)
         self.protocol.bind(MessageBusEventHandler, self.bus)

@@ -64,7 +64,7 @@ class HiveMindClientConnection:
         # this is how ovos refers to connected nodes in message.context
         return f"{self.name}:{self.ip}::{self.sess.session_id}"
 
-    def send(self, message: HiveMessage):
+    async def send(self, message: HiveMessage):
         # TODO some cleaning around HiveMessage
         if isinstance(message.payload, dict):
             _msg_type = message.payload.get("type")
@@ -90,8 +90,7 @@ class HiveMindClientConnection:
         else:
             LOG.debug(f"sent unencrypted!")
 
-        self.loop.install()
-        self.socket.write_message(payload, is_bin)
+        await self.socket.write_message(payload, is_bin)
 
     def decode(self, payload: str) -> HiveMessage:
         if self.crypto_key:
@@ -178,7 +177,7 @@ class HiveMindListenerInternalProtocol:
                     "hive.client.send.error",
                     {"error": "That client is not connected", "peer": peer}))
 
-    def handle_internal_mycroft(self, message: str):
+    async def handle_internal_mycroft(self, message: str):
         """ forward internal messages to clients if they are the target
         here is where the client isolation happens,
         clients only get responses to their own messages"""
@@ -205,7 +204,7 @@ class HiveMindListenerInternalProtocol:
                                   source_peer=peer,
                                   target_peers=target_peers,
                                   payload=message)
-                client.send(msg)
+                await client.send(msg)
 
 
 @dataclass()
@@ -226,16 +225,12 @@ class HiveMindListenerProtocol:
     mycroft_bus_callback = None  # slave asked to inject payload into mycroft bus
     shared_bus_callback = None  # passive sharing of slave device bus (info)
 
-    def bind(self, websocket, bus=None):
+    def bind(self, websocket, bus):
         websocket.protocol = self
-        if bus is None:
-            bus = MessageBusClient()
-            bus.run_in_thread()
-            bus.connected_event.wait()
         self.internal_protocol = HiveMindListenerInternalProtocol(bus)
         self.internal_protocol.register_bus_handlers()
 
-    def handle_new_client(self, client: HiveMindClientConnection):
+    async def handle_new_client(self, client: HiveMindClientConnection):
         LOG.debug(f"new client: {client.peer}")
         self.clients[client.peer] = client
         message = Message("hive.client.connect",
@@ -253,7 +248,7 @@ class HiveMindListenerProtocol:
                                    "peer": client.peer,  # this identifies the connected client in ovos message.context
                                    "node_id": self.peer})
         LOG.debug(f"saying HELLO to: {client.peer}")
-        client.send(msg)
+        await client.send(msg)
 
         needs_handshake = not client.crypto_key and self.handshake_enabled
 
@@ -269,7 +264,7 @@ class HiveMindListenerProtocol:
         }
         msg = HiveMessage(HiveMessageType.HANDSHAKE, payload)
         LOG.debug(f"starting {client.peer} HANDSHAKE: {payload}")
-        client.send(msg)
+        await client.send(msg)
         # if client is in protocol V1 -> self.handle_handshake_message
         # clients can rotate their pubkey or session_key by sending a new handshake
 
@@ -296,7 +291,7 @@ class HiveMindListenerProtocol:
                           {"source": client.peer})
         self.internal_protocol.bus.emit(message)
 
-    def handle_message(self, message: HiveMessage, client: HiveMindClientConnection):
+    async def handle_message(self, message: HiveMessage, client: HiveMindClientConnection):
         """
         message (HiveMessage): HiveMind message object
 
@@ -309,7 +304,7 @@ class HiveMindListenerProtocol:
         message.update_hop_data()
 
         if message.msg_type == HiveMessageType.HANDSHAKE:
-            self.handle_handshake_message(message, client)
+            await self.handle_handshake_message(message, client)
 
         # mycroft Message handlers
         elif message.msg_type == HiveMessageType.BUS:
@@ -340,7 +335,7 @@ class HiveMindListenerProtocol:
     def handle_binary_message(self, message: HiveMessage, client: HiveMindClientConnection):
         assert message.msg_type == HiveMessageType.BINARY
 
-    def handle_handshake_message(self, message: HiveMessage,
+    async def handle_handshake_message(self, message: HiveMessage,
                                  client: HiveMindClientConnection):
         LOG.debug("handshake received, generating session key")
         payload = message.payload
@@ -386,7 +381,7 @@ class HiveMindListenerProtocol:
             return
 
         msg = HiveMessage(HiveMessageType.HANDSHAKE, payload)
-        client.send(msg)  # client can recreate crypto_key on his side now
+        await client.send(msg)  # client can recreate crypto_key on his side now
 
     def handle_bus_message(self, message: HiveMessage,
                            client: HiveMindClientConnection):
