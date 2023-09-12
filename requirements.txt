@@ -2,7 +2,7 @@ tornado
 ovos_utils>=0.0.33
 pycryptodomex
 HiveMind_presence>=0.0.2a3
-ovos-bus-client
+ovos-bus-client>=0.0.6a5
 poorman_handshake>=0.1.0
 click
 click_default_group
