@@ -25,6 +25,7 @@ from hivemind_bus_client.identity import NodeIdentity
 from hivemind_core.database import ClientDatabase
 from hivemind_core.protocol import HiveMindListenerProtocol, HiveMindClientConnection, HiveMindNodeType
 from hivemind_presence import LocalPresence
+from hivemind_ggwave import GGWaveMaster
 from ovos_bus_client import MessageBusClient
 
 
@@ -191,6 +192,13 @@ class HiveMindService:
                                       upnp=websocket_config.get('upnp', False),
                                       port=self.port,
                                       zeroconf=websocket_config.get('zeroconf', False))
+        try:
+            # TODO - silent_mode should be controlled via external events
+            # to start enrolling new devices on demand
+            self.ggwave = GGWaveMaster(bus=self.bus, silent_mode=True)
+        except Exception as e:
+            LOG.error(f"ggwave failed to start: {e}")
+            self.ggwave = None
 
     def run(self):
         self.status.set_alive()
@@ -222,6 +230,9 @@ class HiveMindService:
             application.listen(self.port, self.host)
 
         self.presence.start()
+        if self.ggwave is not None:
+            self.ggwave.start()
+            LOG.info("listening for ggwave audio handshakes")
 
         self.status.set_ready()
 
@@ -229,3 +240,5 @@ class HiveMindService:
 
         self.status.set_stopping()
         self.presence.stop()
+        if self.ggwave is not None:
+            self.ggwave.stop()

@@ -24,7 +24,7 @@ def get_version():
                     '# END_VERSION_BLOCK' in line):
                 break
     version = f"{major}.{minor}.{build}"
-    if alpha:
+    if int(alpha) > 0:
         version += f"a{alpha}"
     return version
 
