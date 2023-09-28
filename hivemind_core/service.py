@@ -166,7 +166,9 @@ class HiveMindService:
                  ready_hook: Callable = on_ready,
                  error_hook: Callable = on_error,
                  stopping_hook: Callable = on_stopping,
-                 websocket_config: Optional[Dict[str, Any]] = None):
+                 websocket_config: Optional[Dict[str, Any]] = None,
+                 protocol=HiveMindListenerProtocol,
+                 bus=None):
 
         websocket_config = websocket_config or \
                 Configuration().get('hivemind_websocket', {})
@@ -175,10 +177,13 @@ class HiveMindService:
                                       on_ready=ready_hook,
                                       on_error=error_hook,
                                       on_stopping=stopping_hook)
-
-        self.bus = MessageBusClient(emitter=EventEmitter())
-        self.bus.run_in_thread()
-        self.bus.connected_event.wait()
+        self._proto = protocol
+        if bus:
+            self.bus = bus
+        else:
+            self.bus = MessageBusClient(emitter=EventEmitter())
+            self.bus.run_in_thread()
+            self.bus.connected_event.wait()
 
         self.status = ProcessStatus('HiveMind', callback_map=callbacks)
         self.host = websocket_config.get('host') or "0.0.0.0"
@@ -205,7 +210,7 @@ class HiveMindService:
         asyncio.set_event_loop_policy(AnyThreadEventLoopPolicy())
         loop = ioloop.IOLoop.current()
 
-        self.protocol = HiveMindListenerProtocol(loop=loop)
+        self.protocol = self._proto(loop=loop)
         self.protocol.bind(MessageBusEventHandler, self.bus)
         self.status.bind(self.bus)
         self.status.set_started()
