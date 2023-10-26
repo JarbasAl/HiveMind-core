@@ -471,6 +471,7 @@ class HiveMindListenerProtocol:
         for peer in self.clients:
             if peer == client.peer:
                 continue
+            self.clients[peer].send(payload)
 
         # send to other masters
         message = Message("hive.send.upstream", payload,
