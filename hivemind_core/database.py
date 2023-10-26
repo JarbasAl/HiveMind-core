@@ -10,7 +10,8 @@ def cast_to_client_obj():
     valid_kwargs: Iterable[str] = ("client_id", "api_key", "name",
                                    "description", "is_admin", "last_seen",
                                    "blacklist", "allowed_types", "crypto_key",
-                                   "password")
+                                   "password", "can_broadcast", "can_escalate",
+                                   "can_propagate")
 
     def _handler(func):
 
@@ -49,7 +50,10 @@ class Client:
                  blacklist: Optional[Dict[str, List[str]]] = None,
                  allowed_types: Optional[List[str]] = None,
                  crypto_key: Optional[str] = None,
-                 password: Optional[str] = None):
+                 password: Optional[str] = None,
+                 can_broadcast: bool = True,
+                 can_escalate: bool = True,
+                 can_propagate: bool = True):
 
         self.client_id = client_id
         self.description = description
@@ -67,6 +71,9 @@ class Client:
         self.allowed_types = allowed_types or ["recognizer_loop:utterance"]
         if "recognizer_loop:utterance" not in self.allowed_types:
             self.allowed_types.append("recognizer_loop:utterance")
+        self.can_broadcast = can_broadcast
+        self.can_escalate = can_escalate
+        self.can_propagate = can_propagate
 
     def __getitem__(self, item: str) -> Any:
         return self.__dict__.get(item)

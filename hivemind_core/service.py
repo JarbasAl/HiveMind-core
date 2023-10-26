@@ -130,6 +130,9 @@ class MessageBusEventHandler(WebSocketHandler):
             self.client.crypto_key = user.crypto_key
             self.client.blacklist = user.blacklist.get("messages", [])
             self.client.allowed_types = user.allowed_types
+            self.client.can_broadcast = user.can_broadcast
+            self.client.can_propagate = user.can_propagate
+            self.client.can_escalate = user.can_escalate
             if user.password:
                 # pre-shared password to derive aes_key
                 self.client.pswd_handshake = PasswordHandShake(user.password)

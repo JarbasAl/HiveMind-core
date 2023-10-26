@@ -58,6 +58,9 @@ class HiveMindClientConnection:
     allowed_types: List[str] = field(default_factory=list)  # list of ovos message_type to allow to be sent from this client
     binarize: bool = False
     site_id: str = "unknown"
+    can_broadcast: bool = True
+    can_escalate: bool = True
+    can_propagate: bool = True
 
     @property
     def peer(self) -> str:
@@ -227,6 +230,7 @@ class HiveMindListenerProtocol:
     escalate_callback = None  # slave asked to escalate payload
     illegal_callback = None  # slave asked to broadcast payload (illegal action)
     propagate_callback = None  # slave asked to propagate payload
+    broadcast_callback = None  # slave asked to broadcast payload
     mycroft_bus_callback = None  # slave asked to inject payload into mycroft bus
     shared_bus_callback = None  # passive sharing of slave device bus (info)
 
@@ -348,6 +352,7 @@ class HiveMindListenerProtocol:
 
     def handle_binary_message(self, message: HiveMessage, client: HiveMindClientConnection):
         assert message.msg_type == HiveMessageType.BINARY
+        # TODO
 
     def handle_handshake_message(self, message: HiveMessage,
                                  client: HiveMindClientConnection):
@@ -413,12 +418,24 @@ class HiveMindListenerProtocol:
         """
         message (HiveMessage): HiveMind message object
         """
-        # Slaves are not allowed to broadcast, by definition broadcast goes
-        # downstream only, use propagate instead
-        LOG.warning("Received broadcast message from downstream, illegal action")
-        if self.illegal_callback:
-            self.illegal_callback(message.payload)
-        # TODO kick client for misbehaviour so it stops doing that?
+        payload = self._unpack_message(message, client)
+
+        if not client.can_broadcast:
+            LOG.warning("Received broadcast message from downstream, illegal action")
+            if self.illegal_callback:
+                self.illegal_callback(payload)
+            # TODO kick client for misbehaviour so it stops doing that?
+            return
+
+        if self.broadcast_callback:
+            self.broadcast_callback(payload)
+
+        # broadcast message to other peers
+        payload = self._unpack_message(message, client)
+        for peer in self.clients:
+            if peer == client.peer:
+                continue
+            self.clients[peer].send(payload)
 
     def _unpack_message(self, message: HiveMessage, client: HiveMindClientConnection):
         # propagate message to other peers
@@ -440,13 +457,20 @@ class HiveMindListenerProtocol:
 
         payload = self._unpack_message(message, client)
 
+        if not client.can_propagate:
+            LOG.warning("Received propagate message from downstream, illegal action")
+            if self.illegal_callback:
+                self.illegal_callback(payload)
+            # TODO kick client for misbehaviour so it stops doing that?
+            return
+
         if self.propagate_callback:
             self.propagate_callback(payload)
 
         # propagate message to other peers
-        for peer in payload.target_peers:
-            if peer in self.clients:
-                self.clients[peer].send(payload)
+        for peer in self.clients:
+            if peer == client.peer:
+                continue
 
         # send to other masters
         message = Message("hive.send.upstream", payload,
@@ -468,6 +492,13 @@ class HiveMindListenerProtocol:
 
         # unpack message
         payload = self._unpack_message(message, client)
+
+        if not client.can_escalate:
+            LOG.warning("Received escalate message from downstream, illegal action")
+            if self.illegal_callback:
+                self.illegal_callback(payload)
+            # TODO kick client for misbehaviour so it stops doing that?
+            return
 
         if self.escalate_callback:
             self.escalate_callback(payload)
