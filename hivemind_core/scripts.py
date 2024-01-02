@@ -22,9 +22,13 @@ def hmcore_cmds():
 def add_client(name, access_key, password, crypto_key):
     key = crypto_key
     if key:
-        print("WARNING: crypto key is deprecated, use password instead if your client supports it")
-        print("WARNING: for security the encryption key should be randomly generated\n"
-              "Defining your own key is discouraged")
+        print(
+            "WARNING: crypto key is deprecated, use password instead if your client supports it"
+        )
+        print(
+            "WARNING: for security the encryption key should be randomly generated\n"
+            "Defining your own key is discouraged"
+        )
         if len(key) != 16:
             print("Encryption key needs to be exactly 16 characters!")
             raise ValueError
@@ -49,7 +53,9 @@ def add_client(name, access_key, password, crypto_key):
         print("Password:", password)
         print("Encryption Key:", key)
 
-        print("WARNING: Encryption Key is deprecated, only use if your client does not support password")
+        print(
+            "WARNING: Encryption Key is deprecated, only use if your client does not support password"
+        )
 
 
 @hmcore_cmds.command(help="allow message types sent from a client", name="allow-msg")
@@ -65,9 +71,11 @@ def allow_msg(msg_type, node_id):
         _choices = []
         for client in ClientDatabase():
             if client["client_id"] != -1:
-                table.add_row(str(client["client_id"]),
-                              client["name"],
-                              str(client.get("allowed_types", [])))
+                table.add_row(
+                    str(client["client_id"]),
+                    client["name"],
+                    str(client.get("allowed_types", [])),
+                )
                 _choices.append(str(client["client_id"]))
 
         if not _choices:
@@ -77,8 +85,10 @@ def allow_msg(msg_type, node_id):
             console = Console()
             console.print(table)
             _exit = str(max(int(i) for i in _choices) + 1)
-            node_id = Prompt.ask(f"To which client you want to add '{msg_type}'? ({_exit}='Exit')",
-                                 choices=_choices + [_exit])
+            node_id = Prompt.ask(
+                f"To which client you want to add '{msg_type}'? ({_exit}='Exit')",
+                choices=_choices + [_exit],
+            )
             if node_id == _exit:
                 console.print("User exit", style="red")
                 exit()
@@ -101,8 +111,9 @@ def allow_msg(msg_type, node_id):
                 break
 
 
-@hmcore_cmds.command(help="remove credentials for a client (numeric unique ID)",
-                     name="delete-client")
+@hmcore_cmds.command(
+    help="remove credentials for a client (numeric unique ID)", name="delete-client"
+)
 @click.argument("node_id", required=True, type=int)
 def delete_client(node_id):
     with ClientDatabase() as db:
@@ -134,7 +145,13 @@ def list_clients():
     with ClientDatabase() as db:
         for x in db:
             if x["client_id"] != -1:
-                table.add_row(str(x["client_id"]), x["name"], x["api_key"], x["password"], x["crypto_key"])
+                table.add_row(
+                    str(x["client_id"]),
+                    x["name"],
+                    x["api_key"],
+                    x["password"],
+                    x["crypto_key"],
+                )
 
     console.print(table)
 
@@ -142,8 +159,18 @@ def list_clients():
 @hmcore_cmds.command(help="start listening for HiveMind connections", name="listen")
 @click.option("--port", help="HiveMind port number", type=int, default=5678)
 @click.option("--ssl", help="use wss://", type=bool, default=False)
-@click.option("--cert_dir", help="HiveMind SSL certificate directory", type=str, default=f"{xdg_data_home()}/hivemind")
-@click.option("--cert_name", help="HiveMind SSL certificate file name", type=str, default="hivemind")
+@click.option(
+    "--cert_dir",
+    help="HiveMind SSL certificate directory",
+    type=str,
+    default=f"{xdg_data_home()}/hivemind",
+)
+@click.option(
+    "--cert_name",
+    help="HiveMind SSL certificate file name",
+    type=str,
+    default="hivemind",
+)
 def listen(port: int, ssl: bool, cert_dir: str, cert_name: str):
     from hivemind_core.service import HiveMindService
 
@@ -152,7 +179,7 @@ def listen(port: int, ssl: bool, cert_dir: str, cert_name: str):
         "port": port,
         "ssl": ssl,
         "cert_dir": cert_dir,
-        "cert_name": cert_name
+        "cert_name": cert_name,
     }
 
     service = HiveMindService(websocket_config=websocket_config)
