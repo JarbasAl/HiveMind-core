@@ -158,13 +158,13 @@ def list_clients():
 
 @hmcore_cmds.command(help="start listening for HiveMind connections", name="listen")
 @click.option(
-    "--remote_bus_host",
-    help="Remote bus address",
+    "--ovos_bus_address",
+    help="Open Voice OS bus address",
     type=str,
     default="127.0.0.1",
 )
 @click.option(
-    "--remote_bus_port", help="Remote bus port number", type=int, default=8181
+    "--ovos_bus_port", help="Open Voice OS bus port number", type=int, default=8181
 )
 @click.option("--port", help="HiveMind port number", type=int, default=5678)
 @click.option("--ssl", help="use wss://", type=bool, default=False)
@@ -181,8 +181,8 @@ def list_clients():
     default="hivemind",
 )
 def listen(
-    remote_bus_host: str,
-    remote_bus_port: int,
+    ovos_bus_address: str,
+    ovos_bus_port: int,
     port: int,
     ssl: bool,
     cert_dir: str,
@@ -190,9 +190,9 @@ def listen(
 ):
     from hivemind_core.service import HiveMindService
 
-    bus_config = {
-        "host": remote_bus_host,
-        "port": remote_bus_port,
+    ovos_bus_config = {
+        "address": ovos_bus_address,
+        "port": ovos_bus_port,
     }
 
     websocket_config = {
@@ -203,7 +203,9 @@ def listen(
         "cert_name": cert_name,
     }
 
-    service = HiveMindService(bus_config=bus_config, websocket_config=websocket_config)
+    service = HiveMindService(
+        ovos_bus_config=ovos_bus_config, websocket_config=websocket_config
+    )
     service.run()
 
 
