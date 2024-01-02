@@ -166,6 +166,12 @@ def list_clients():
 @click.option(
     "--ovos_bus_port", help="Open Voice OS bus port number", type=int, default=8181
 )
+@click.option(
+    "--host",
+    help="HiveMind host",
+    type=str,
+    default="0.0.0.0",
+)
 @click.option("--port", help="HiveMind port number", type=int, default=5678)
 @click.option("--ssl", help="use wss://", type=bool, default=False)
 @click.option(
@@ -183,6 +189,7 @@ def list_clients():
 def listen(
     ovos_bus_address: str,
     ovos_bus_port: int,
+    host: str,
     port: int,
     ssl: bool,
     cert_dir: str,
@@ -196,7 +203,7 @@ def listen(
     }
 
     websocket_config = {
-        "host": "0.0.0.0",
+        "host": host,
         "port": port,
         "ssl": ssl,
         "cert_dir": cert_dir,
