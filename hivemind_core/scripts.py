@@ -157,6 +157,15 @@ def list_clients():
 
 
 @hmcore_cmds.command(help="start listening for HiveMind connections", name="listen")
+@click.option(
+    "--remote_bus_host",
+    help="Remote bus address",
+    type=str,
+    default="127.0.0.1",
+)
+@click.option(
+    "--remote_bus_port", help="Remote bus port number", type=int, default=8181
+)
 @click.option("--port", help="HiveMind port number", type=int, default=5678)
 @click.option("--ssl", help="use wss://", type=bool, default=False)
 @click.option(
@@ -171,8 +180,20 @@ def list_clients():
     type=str,
     default="hivemind",
 )
-def listen(port: int, ssl: bool, cert_dir: str, cert_name: str):
+def listen(
+    remote_bus_host: str,
+    remote_bus_port: int,
+    port: int,
+    ssl: bool,
+    cert_dir: str,
+    cert_name: str,
+):
     from hivemind_core.service import HiveMindService
+
+    bus_config = {
+        "host": remote_bus_host,
+        "port": remote_bus_port,
+    }
 
     websocket_config = {
         "host": "0.0.0.0",
@@ -182,7 +203,7 @@ def listen(port: int, ssl: bool, cert_dir: str, cert_name: str):
         "cert_name": cert_name,
     }
 
-    service = HiveMindService(websocket_config=websocket_config)
+    service = HiveMindService(bus_config=bus_config, websocket_config=websocket_config)
     service.run()
 
 

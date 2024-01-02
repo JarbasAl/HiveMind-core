@@ -191,6 +191,7 @@ class HiveMindService:
         error_hook: Callable = on_error,
         stopping_hook: Callable = on_stopping,
         websocket_config: Optional[Dict[str, Any]] = None,
+        bus_config: Optional[Dict[str, Any]] = None,
         protocol=HiveMindListenerProtocol,
         bus=None,
         ws_handler=MessageBusEventHandler,
@@ -210,7 +211,13 @@ class HiveMindService:
         if bus:
             self.bus = bus
         else:
-            self.bus = MessageBusClient(emitter=EventEmitter())
+            self.remote_bus_host = bus_config.get("host") or "127.0.0.1"
+            self.remote_bus_port = bus_config.get("port") or 8181
+            self.bus = MessageBusClient(
+                host=self.remote_bus_host,
+                port=self.remote_bus_port,
+                emitter=EventEmitter(),
+            )
             self.bus.run_in_thread()
             self.bus.connected_event.wait()
 
