@@ -75,14 +75,13 @@ Options:
 # Protocol
 
 | Protocol Version     | 0   | 1   |
-|----------------------|-----|-----|
+| -------------------- | --- | --- |
 | json serialization   | yes | yes |
 | binary serialization | no  | yes |
 | pre-shared AES key   | yes | yes |
 | password handshake   | no  | yes |
 | PGP handshake        | no  | yes |
 | zlib compression     | no  | yes |
-
 
 some clients such as HiveMind-Js do not yet support protocol V1
 
@@ -112,4 +111,3 @@ some clients such as HiveMind-Js do not yet support protocol V1
 ## Minds
 
 - [NodeRed](https://github.com/OpenJarbas/HiveMind-NodeRed)
-

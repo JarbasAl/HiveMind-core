@@ -5,9 +5,7 @@ from hivemind_core.database import ClientDatabase, Client
 
 
 class TestDB(TestCase):
-
     def test_add_entry(self):
-
         key = os.urandom(8).hex()
         access_key = os.urandom(16).hex()
         password = None
@@ -15,9 +13,7 @@ class TestDB(TestCase):
         with ClientDatabase() as db:
             n = db.total_clients()
             name = f"HiveMind-Node-{n}"
-            user = db.add_client(name, access_key,
-                                 crypto_key=key,
-                                 password=password)
+            user = db.add_client(name, access_key, crypto_key=key, password=password)
             # verify data
             self.assertTrue(isinstance(user, Client))
             self.assertEqual(user.name, name)
@@ -39,4 +35,3 @@ class TestDB(TestCase):
             self.assertEqual(node_id, -1)
             user = db.get_client_by_api_key(access_key)
             self.assertIsNone(user)
-

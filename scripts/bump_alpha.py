@@ -15,4 +15,4 @@ for line in fileinput.input(version_file, inplace=True):
     if line.startswith(version_var_name):
         print(f"{version_var_name} = {new_version}")
     else:
-        print(line.rstrip('\n'))
+        print(line.rstrip("\n"))

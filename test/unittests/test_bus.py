@@ -9,6 +9,7 @@ from jarbas_hive_mind.utils.emulation import FakeMycroft
 
 # TODO - rewrite tests
 
+
 def get_hive():
     # TODO add/mock db for the test
     key = "dummy_key"
@@ -43,24 +44,44 @@ def get_hive():
 
     sleep(1)
 
-    mid = FakeMycroft(MID_PORT, connection=HiveNodeClient(
-        key=key, crypto_key=crypto_key, port=MASTER_PORT, ssl=False))
+    mid = FakeMycroft(
+        MID_PORT,
+        connection=HiveNodeClient(
+            key=key, crypto_key=crypto_key, port=MASTER_PORT, ssl=False
+        ),
+    )
     mid.start()
 
-    mid2 = FakeMycroft(MID2_PORT, connection=HiveNodeClient(
-        key=key, crypto_key=crypto_key, port=MASTER_PORT, ssl=False))
+    mid2 = FakeMycroft(
+        MID2_PORT,
+        connection=HiveNodeClient(
+            key=key, crypto_key=crypto_key, port=MASTER_PORT, ssl=False
+        ),
+    )
     mid2.start()
 
     sleep(1)
 
-    end = FakeMycroft(END_PORT, connection=HiveNodeClient(
-        key=key, crypto_key=crypto_key, port=MID_PORT, ssl=False))
+    end = FakeMycroft(
+        END_PORT,
+        connection=HiveNodeClient(
+            key=key, crypto_key=crypto_key, port=MID_PORT, ssl=False
+        ),
+    )
     end.start()
-    end2 = FakeMycroft(END2_PORT, connection=HiveNodeClient(
-        key=key, crypto_key=crypto_key, port=MID_PORT, ssl=False))
+    end2 = FakeMycroft(
+        END2_PORT,
+        connection=HiveNodeClient(
+            key=key, crypto_key=crypto_key, port=MID_PORT, ssl=False
+        ),
+    )
     end2.start()
-    end3 = FakeMycroft(END3_PORT, connection=HiveNodeClient(
-        key=key, crypto_key=crypto_key, port=MID2_PORT, ssl=False))
+    end3 = FakeMycroft(
+        END3_PORT,
+        connection=HiveNodeClient(
+            key=key, crypto_key=crypto_key, port=MID2_PORT, ssl=False
+        ),
+    )
     end3.start()
 
     sleep(10)  # allow hive to fully connect
@@ -90,9 +111,7 @@ class TestConnections(TestCase):
 
 
 class TestHiveBus(TestCase):
-
     def test_midtomaster(self):
-
         #
         #           Master
         #          *
@@ -122,8 +141,9 @@ class TestHiveBus(TestCase):
         mid.register_downstream_handlers()
         mid2.register_downstream_handlers()
 
-        pload = HiveMessage(msg_type=HiveMessageType.BUS,
-                            payload=Message("test", {"ping": "pong"}))
+        pload = HiveMessage(
+            msg_type=HiveMessageType.BUS, payload=Message("test", {"ping": "pong"})
+        )
         mid.connection.emit(pload)
         sleep(2)
 
@@ -167,8 +187,9 @@ class TestHiveBus(TestCase):
         mid.register_downstream_handlers()
         mid2.register_downstream_handlers()
 
-        pload = HiveMessage(msg_type=HiveMessageType.BUS,
-                            payload=Message("test", {"ping": "pong"}))
+        pload = HiveMessage(
+            msg_type=HiveMessageType.BUS, payload=Message("test", {"ping": "pong"})
+        )
         end3.connection.emit(pload)
         sleep(2)
 
@@ -225,8 +246,9 @@ class TestHiveBus(TestCase):
         end2.register_upstream_handlers()
         end2.register_upstream_handlers()
 
-        pload = HiveMessage(msg_type=HiveMessageType.BUS,
-                            payload=Message("test", {"ping": "pong"}))
+        pload = HiveMessage(
+            msg_type=HiveMessageType.BUS, payload=Message("test", {"ping": "pong"})
+        )
         master.interface.send(pload, mid.connection.peer)
         sleep(0.5)
 
@@ -283,8 +305,9 @@ class TestHiveBus(TestCase):
         end2.register_upstream_handlers()
         end2.register_upstream_handlers()
 
-        pload = HiveMessage(msg_type=HiveMessageType.BUS,
-                            payload=Message("test", {"ping": "pong"}))
+        pload = HiveMessage(
+            msg_type=HiveMessageType.BUS, payload=Message("test", {"ping": "pong"})
+        )
         mid.interface.send(pload, end.connection.peer)
         sleep(0.5)
 
@@ -301,9 +324,7 @@ class TestHiveBus(TestCase):
 
 
 class TestEscalate(TestCase):
-
     def test_midtomaster(self):
-
         #
         #           Master
         #          *
@@ -333,9 +354,11 @@ class TestEscalate(TestCase):
         mid.register_downstream_handlers()
         mid2.register_downstream_handlers()
 
-        pload = HiveMessage(msg_type=HiveMessageType.THIRDPRTY,
-                            payload=Message("test", {"ping": "pong"}))
-        pload = HiveMessage(msg_type=HiveMessageType.ESCALATE,  payload=pload)
+        pload = HiveMessage(
+            msg_type=HiveMessageType.THIRDPRTY,
+            payload=Message("test", {"ping": "pong"}),
+        )
+        pload = HiveMessage(msg_type=HiveMessageType.ESCALATE, payload=pload)
         mid.connection.emit(pload)
         sleep(2)
 
@@ -381,8 +404,10 @@ class TestEscalate(TestCase):
         mid.register_downstream_handlers()
         mid2.register_downstream_handlers()
 
-        pload = HiveMessage(msg_type=HiveMessageType.THIRDPRTY,
-                            payload=Message("test", {"ping": "pong"}))
+        pload = HiveMessage(
+            msg_type=HiveMessageType.THIRDPRTY,
+            payload=Message("test", {"ping": "pong"}),
+        )
         pload = HiveMessage(msg_type=HiveMessageType.ESCALATE, payload=pload)
         end.connection.emit(pload)
         sleep(2)
@@ -428,8 +453,10 @@ class TestEscalate(TestCase):
         mid.register_downstream_handlers()
         mid2.register_downstream_handlers()
 
-        pload = HiveMessage(msg_type=HiveMessageType.THIRDPRTY,
-                            payload=Message("test", {"ping": "pong"}))
+        pload = HiveMessage(
+            msg_type=HiveMessageType.THIRDPRTY,
+            payload=Message("test", {"ping": "pong"}),
+        )
         pload = HiveMessage(msg_type=HiveMessageType.ESCALATE, payload=pload)
         end3.connection.emit(pload)
         sleep(2)
@@ -447,7 +474,6 @@ class TestEscalate(TestCase):
 
 
 class TestHiveBroadcast(TestCase):
-
     def test_master(self):
         #           Master
         #         /       \
@@ -490,8 +516,10 @@ class TestHiveBroadcast(TestCase):
         end2.register_upstream_handlers()
         end3.register_upstream_handlers()
 
-        pload = HiveMessage(msg_type=HiveMessageType.THIRDPRTY,
-                            payload=Message("test", {"ping": "pong"}))
+        pload = HiveMessage(
+            msg_type=HiveMessageType.THIRDPRTY,
+            payload=Message("test", {"ping": "pong"}),
+        )
         master.interface.broadcast(pload)
         sleep(1)
 
@@ -550,8 +578,10 @@ class TestHiveBroadcast(TestCase):
         end2.register_upstream_handlers()
         end3.register_upstream_handlers()
 
-        pload = HiveMessage(msg_type=HiveMessageType.THIRDPRTY,
-                            payload=Message("test", {"ping": "pong"}))
+        pload = HiveMessage(
+            msg_type=HiveMessageType.THIRDPRTY,
+            payload=Message("test", {"ping": "pong"}),
+        )
         mid.interface.broadcast(pload)
         sleep(1)
 
@@ -572,9 +602,7 @@ class TestHiveBroadcast(TestCase):
 
 @skip("TODO Fix me")
 class TestPropagate(TestCase):
-
     def test_mid(self):
-
         #
         #           Master
         #          *     \
@@ -628,9 +656,11 @@ class TestPropagate(TestCase):
         end2.register_upstream_handlers()
         end3.register_upstream_handlers()
 
-        pload = HiveMessage(msg_type=HiveMessageType.THIRDPRTY,
-                            payload=Message("test", {"ping": "pong"}))
-        pload = HiveMessage(msg_type=HiveMessageType.PROPAGATE,  payload=pload)
+        pload = HiveMessage(
+            msg_type=HiveMessageType.THIRDPRTY,
+            payload=Message("test", {"ping": "pong"}),
+        )
+        pload = HiveMessage(msg_type=HiveMessageType.PROPAGATE, payload=pload)
         mid.connection.emit(pload)
         sleep(2)
 
@@ -702,8 +732,10 @@ class TestPropagate(TestCase):
         end2.register_upstream_handlers()
         end3.register_upstream_handlers()
 
-        pload = HiveMessage(msg_type=HiveMessageType.THIRDPRTY,
-                            payload=Message("test", {"ping": "pong"}))
+        pload = HiveMessage(
+            msg_type=HiveMessageType.THIRDPRTY,
+            payload=Message("test", {"ping": "pong"}),
+        )
         pload = HiveMessage(msg_type=HiveMessageType.PROPAGATE, payload=pload)
         end.connection.emit(pload)
         sleep(2)
@@ -778,8 +810,10 @@ class TestPropagate(TestCase):
         end2.register_upstream_handlers()
         end3.register_upstream_handlers()
 
-        pload = HiveMessage(msg_type=HiveMessageType.THIRDPRTY,
-                            payload=Message("test", {"ping": "pong"}))
+        pload = HiveMessage(
+            msg_type=HiveMessageType.THIRDPRTY,
+            payload=Message("test", {"ping": "pong"}),
+        )
         pload = HiveMessage(msg_type=HiveMessageType.PROPAGATE, payload=pload)
         end3.connection.emit(pload)
         sleep(2)
@@ -797,4 +831,3 @@ class TestPropagate(TestCase):
             continue
             self.assertEqual(message.msg_type, HiveMessageType.BUS)
             self.assertTrue(isinstance(message.payload, Message))
-
