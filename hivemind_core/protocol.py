@@ -21,7 +21,9 @@ from poorman_handshake import HandShake, PasswordHandShake
 from tornado import ioloop
 from tornado.websocket import WebSocketHandler
 
-from hivemind_core.transformers import MetadataTransformersService, UtteranceTransformersService
+from hivemind_core.transformers import (MetadataTransformersService,
+                                        UtteranceTransformersService,
+                                        DialogTransformersService)
 
 
 class ProtocolVersion(IntEnum):
@@ -258,6 +260,7 @@ class HiveMindListenerProtocol:
 
     utterance_plugins: UtteranceTransformersService = None
     metadata_plugins: MetadataTransformersService = None
+    dialog_plugins: DialogTransformersService = None
 
     def bind(self, websocket, bus):
         websocket.protocol = self
@@ -267,6 +270,7 @@ class HiveMindListenerProtocol:
         config = Configuration().get("hivemind", {})
         self.utterance_plugins = UtteranceTransformersService(bus, config=config)
         self.metadata_plugins = MetadataTransformersService(bus, config=config)
+        self.dialog_plugins = DialogTransformersService(bus, config=config)
 
     def get_bus(self, client: HiveMindClientConnection):
         # allow subclasses to use dedicated bus per client
@@ -460,7 +464,7 @@ class HiveMindListenerProtocol:
         msg = HiveMessage(HiveMessageType.HANDSHAKE, payload)
         client.send(msg)  # client can recreate crypto_key on his side now
 
-    def _handle_transformers(self, message: Message) -> Message:
+    def _handle_utt_transformers(self, message: Message) -> Message:
         """
         Pipe utterance through transformer plugins to get more metadata.
         Utterances may be modified by any parser and context overwritten
@@ -475,11 +479,28 @@ class HiveMindListenerProtocol:
         message.context = self.metadata_plugins.transform(message.context)
         return message
 
+    def _handle_dialog_transformers(self, message: Message) -> Message:
+        """
+        Pipe utterance through transformer plugins to get more metadata.
+        Utterances may be modified by any parser and context overwritten
+        """
+        lang = get_message_lang(message)  # per query lang or default Configuration lang
+        original = utterance = message.data.get('utterance', "")
+        message.context["lang"] = lang
+        if utterance:
+            utterance, message.context = self.dialog_plugins.transform(utterance, message.context)
+            if original != utterance:
+                message.data["utterance"] = utterance
+                LOG.debug(f"speak transformed: {original} -> {utterance}")
+        return message
+
     def handle_bus_message(
             self, message: HiveMessage, client: HiveMindClientConnection
     ):
         if message.payload.msg_type == "recognizer_loop:utterance":
-            message._payload = self._handle_transformers(message.payload).serialize()
+            message._payload = self._handle_utt_transformers(message.payload).serialize()
+        if message.payload.msg_type == "speak":
+            message._payload = self._handle_dialog_transformers(message.payload).serialize()
 
         self.handle_inject_mycroft_msg(message.payload, client)
         if self.mycroft_bus_callback:
