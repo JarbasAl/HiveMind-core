@@ -3,14 +3,6 @@ from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from typing import List, Dict, Optional
 
-from ovos_bus_client import MessageBusClient
-from ovos_bus_client.message import Message
-from ovos_bus_client.session import Session
-from ovos_utils.log import LOG
-from poorman_handshake import HandShake, PasswordHandShake
-from tornado import ioloop
-from tornado.websocket import WebSocketHandler
-
 from hivemind_bus_client.message import HiveMessage, HiveMessageType
 from hivemind_bus_client.serialization import decode_bitstring, get_bitstring
 from hivemind_bus_client.util import (
@@ -19,6 +11,19 @@ from hivemind_bus_client.util import (
     decrypt_from_json,
     encrypt_as_json,
 )
+from ovos_bus_client import MessageBusClient
+from ovos_bus_client.message import Message
+from ovos_bus_client.session import Session
+from ovos_bus_client.util import get_message_lang
+from ovos_config import Configuration
+from ovos_utils.log import LOG
+from poorman_handshake import HandShake, PasswordHandShake
+from tornado import ioloop
+from tornado.websocket import WebSocketHandler
+
+from hivemind_core.transformers import (MetadataTransformersService,
+                                        UtteranceTransformersService,
+                                        DialogTransformersService)
 
 
 class ProtocolVersion(IntEnum):
@@ -253,10 +258,19 @@ class HiveMindListenerProtocol:
     mycroft_bus_callback = None  # slave asked to inject payload into mycroft bus
     shared_bus_callback = None  # passive sharing of slave device bus (info)
 
+    utterance_plugins: UtteranceTransformersService = None
+    metadata_plugins: MetadataTransformersService = None
+    dialog_plugins: DialogTransformersService = None
+
     def bind(self, websocket, bus):
         websocket.protocol = self
         self.internal_protocol = HiveMindListenerInternalProtocol(bus)
         self.internal_protocol.register_bus_handlers()
+
+        config = Configuration().get("hivemind", {})
+        self.utterance_plugins = UtteranceTransformersService(bus, config=config)
+        self.metadata_plugins = MetadataTransformersService(bus, config=config)
+        self.dialog_plugins = DialogTransformersService(bus, config=config)
 
     def get_bus(self, client: HiveMindClientConnection):
         # allow subclasses to use dedicated bus per client
@@ -303,9 +317,9 @@ class HiveMindListenerProtocol:
             "max_protocol_version": max_version,
             "binarize": True,  # report we support the binarization scheme
             "preshared_key": client.crypto_key
-            is not None,  # do we have a pre-shared key (V0 proto)
+                             is not None,  # do we have a pre-shared key (V0 proto)
             "password": client.pswd_handshake
-            is not None,  # is password available (V1 proto, replaces pre-shared key)
+                        is not None,  # is password available (V1 proto, replaces pre-shared key)
             "crypto_required": self.require_crypto,  # do we allow unencrypted payloads
         }
         msg = HiveMessage(HiveMessageType.HANDSHAKE, payload)
@@ -381,7 +395,7 @@ class HiveMindListenerProtocol:
 
     # HiveMind protocol messages -  from slave -> master
     def handle_unknown_message(
-        self, message: HiveMessage, client: HiveMindClientConnection
+            self, message: HiveMessage, client: HiveMindClientConnection
     ):
         """message handler for non default message types, subclasses can
         handle their own types here
@@ -390,13 +404,13 @@ class HiveMindListenerProtocol:
         """
 
     def handle_binary_message(
-        self, message: HiveMessage, client: HiveMindClientConnection
+            self, message: HiveMessage, client: HiveMindClientConnection
     ):
         assert message.msg_type == HiveMessageType.BINARY
         # TODO
 
     def handle_handshake_message(
-        self, message: HiveMessage, client: HiveMindClientConnection
+            self, message: HiveMessage, client: HiveMindClientConnection
     ):
         LOG.debug("handshake received, generating session key")
         payload = message.payload
@@ -450,15 +464,50 @@ class HiveMindListenerProtocol:
         msg = HiveMessage(HiveMessageType.HANDSHAKE, payload)
         client.send(msg)  # client can recreate crypto_key on his side now
 
+    def _handle_utt_transformers(self, message: Message) -> Message:
+        """
+        Pipe utterance through transformer plugins to get more metadata.
+        Utterances may be modified by any parser and context overwritten
+        """
+        lang = get_message_lang(message)  # per query lang or default Configuration lang
+        original = utterances = message.data.get('utterances', [])
+        message.context["lang"] = lang
+        utterances, message.context = self.utterance_plugins.transform(utterances, message.context)
+        if original != utterances:
+            message.data["utterances"] = utterances
+            LOG.debug(f"utterances transformed: {original} -> {utterances}")
+        message.context = self.metadata_plugins.transform(message.context)
+        return message
+
+    def _handle_dialog_transformers(self, message: Message) -> Message:
+        """
+        Pipe utterance through transformer plugins to get more metadata.
+        Utterances may be modified by any parser and context overwritten
+        """
+        lang = get_message_lang(message)  # per query lang or default Configuration lang
+        original = utterance = message.data.get('utterance', "")
+        message.context["lang"] = lang
+        if utterance:
+            utterance, message.context = self.dialog_plugins.transform(utterance, message.context)
+            if original != utterance:
+                message.data["utterance"] = utterance
+                LOG.debug(f"speak transformed: {original} -> {utterance}")
+        return message
+
     def handle_bus_message(
-        self, message: HiveMessage, client: HiveMindClientConnection
+            self, message: HiveMessage, client: HiveMindClientConnection
     ):
+        if message.payload.msg_type == "recognizer_loop:utterance":
+            message._payload = self._handle_utt_transformers(message.payload).serialize()
+        if message.payload.msg_type == "speak":
+            message._payload = self._handle_dialog_transformers(message.payload).serialize()
+
         self.handle_inject_mycroft_msg(message.payload, client)
         if self.mycroft_bus_callback:
             self.mycroft_bus_callback(message.payload)
 
     def handle_broadcast_message(
-        self, message: HiveMessage, client: HiveMindClientConnection
+            self, message: HiveMessage, client: HiveMindClientConnection
     ):
         """
         message (HiveMessage): HiveMind message object
@@ -492,7 +541,7 @@ class HiveMindListenerProtocol:
         return pload
 
     def handle_propagate_message(
-        self, message: HiveMessage, client: HiveMindClientConnection
+            self, message: HiveMessage, client: HiveMindClientConnection
     ):
         """
         message (HiveMessage): HiveMind message object
@@ -533,7 +582,7 @@ class HiveMindListenerProtocol:
         bus.emit(message)
 
     def handle_escalate_message(
-        self, message: HiveMessage, client: HiveMindClientConnection
+            self, message: HiveMessage, client: HiveMindClientConnection
     ):
         """
         message (HiveMessage): HiveMind message object
@@ -578,7 +627,7 @@ class HiveMindListenerProtocol:
         return message
 
     def handle_inject_mycroft_msg(
-        self, message: Message, client: HiveMindClientConnection
+            self, message: Message, client: HiveMindClientConnection
     ):
         """
         message (Message): mycroft bus message object
