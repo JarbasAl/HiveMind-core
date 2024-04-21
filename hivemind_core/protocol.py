@@ -566,13 +566,6 @@ class HiveMindListenerProtocol:
         bus.emit(message)
 
     # HiveMind mycroft bus messages -  from slave -> master
-    def update_slave_session(self, message: Message, client: HiveMindClientConnection) -> Message:
-        """slave injected a message, master decides what the session is unconditionally (active skills etc)
-        handle special message that influence session per client and update HM session as needed here
-        """
-        message.context["session"] = client.sess.serialize()
-        return message
-
     def handle_inject_mycroft_msg(
         self, message: Message, client: HiveMindClientConnection
     ):
@@ -588,7 +581,8 @@ class HiveMindListenerProtocol:
             return
 
         # ensure client specific session data is injected in query to ovos
-        message.context["session"] = client.sess.serialize()
+        if "session" not in message.context:
+            message.context["session"] = client.sess.serialize()
         if message.msg_type == "speak":
             message.context["destination"] = ["audio"]  # make audible, this is injected "speak" command
         elif message.context.get("destination") is None:
@@ -598,9 +592,6 @@ class HiveMindListenerProtocol:
         LOG.info(f"Forwarding message to mycroft bus from client: {client.peer}")
         message.context["peer"] = message.context["source"] = client.peer
         message.context["source"] = client.peer
-
-        # validate slave session
-        message = self.update_slave_session(message, client)
 
         bus = self.get_bus(client)
         bus.emit(message)
