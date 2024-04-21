@@ -212,15 +212,7 @@ class HiveMindListenerInternalProtocol:
         if not isinstance(target_peers, list):
             target_peers = [target_peers]
 
-        new_sess = Session.from_message(message)
         for peer, client in self.clients.items():
-            # ovos-core decides the runtime contents of the Session,
-            # let's sync any internal changes
-            if new_sess.session_id == client.sess.session_id:
-                LOG.debug(f"syncing session from ovos with {peer}")
-                client.sess = Session.from_message(message)
-                client.sess.site_id = client.site_id
-
             if peer in target_peers:
                 # forward internal messages to clients if they are the target
                 LOG.debug(f"{message.msg_type} - destination: {peer}")
@@ -303,9 +295,9 @@ class HiveMindListenerProtocol:
             "max_protocol_version": max_version,
             "binarize": True,  # report we support the binarization scheme
             "preshared_key": client.crypto_key
-            is not None,  # do we have a pre-shared key (V0 proto)
+                             is not None,  # do we have a pre-shared key (V0 proto)
             "password": client.pswd_handshake
-            is not None,  # is password available (V1 proto, replaces pre-shared key)
+                        is not None,  # is password available (V1 proto, replaces pre-shared key)
             "crypto_required": self.require_crypto,  # do we allow unencrypted payloads
         }
         msg = HiveMessage(HiveMessageType.HANDSHAKE, payload)
@@ -453,6 +445,10 @@ class HiveMindListenerProtocol:
     def handle_bus_message(
         self, message: HiveMessage, client: HiveMindClientConnection
     ):
+        # update the session as received by the client
+        client.sess = Session.from_message(message.payload)
+        LOG.debug(f"Client session updated: {client.sess.serialize()}")
+
         self.handle_inject_mycroft_msg(message.payload, client)
         if self.mycroft_bus_callback:
             self.mycroft_bus_callback(message.payload)
@@ -570,7 +566,7 @@ class HiveMindListenerProtocol:
         bus.emit(message)
 
     # HiveMind mycroft bus messages -  from slave -> master
-    def update_slave_session(self, message: Message, client: HiveMindClientConnection):
+    def update_slave_session(self, message: Message, client: HiveMindClientConnection) -> Message:
         """slave injected a message, master decides what the session is unconditionally (active skills etc)
         handle special message that influence session per client and update HM session as needed here
         """
@@ -594,11 +590,9 @@ class HiveMindListenerProtocol:
         # ensure client specific session data is injected in query to ovos
         message.context["session"] = client.sess.serialize()
         if message.msg_type == "speak":
-            message.context["destination"] = ["audio"]
+            message.context["destination"] = ["audio"]  # make audible, this is injected "speak" command
         elif message.context.get("destination") is None:
-            message.context[
-                "destination"
-            ] = "skills"  # ensure not treated as a broadcast
+            message.context["destination"] = "skills"  # ensure not treated as a broadcast
 
         # send client message to internal mycroft bus
         LOG.info(f"Forwarding message to mycroft bus from client: {client.peer}")
