@@ -74,7 +74,11 @@ class Client:
         self.crypto_key = crypto_key
         self.password = password
         self.blacklist = blacklist or {"messages": [], "skills": [], "intents": []}
-        self.allowed_types = allowed_types or ["recognizer_loop:utterance"]
+        self.allowed_types = allowed_types or ["recognizer_loop:utterance", 
+                                               "recognizer_loop:record_begin", 
+                                               "recognizer_loop:record_end", 
+                                               "recognizer_loop:audio_output_start", 
+                                               "recognizer_loop:audio_output_end"]
         if "recognizer_loop:utterance" not in self.allowed_types:
             self.allowed_types.append("recognizer_loop:utterance")
         self.can_broadcast = can_broadcast
