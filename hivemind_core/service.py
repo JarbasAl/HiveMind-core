@@ -254,7 +254,7 @@ class HiveMindService:
         loop = ioloop.IOLoop.current()
 
         self.protocol = self._proto(loop=loop)
-        self.protocol.bind(self._ws_handler, self.bus)
+        self.protocol.bind(self._ws_handler, self.bus, self.identity)
         self.status.bind(self.bus)
         self.status.set_started()
 

@@ -2,6 +2,7 @@ import json
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from typing import List, Dict, Optional
+import pgpy
 
 from ovos_bus_client import MessageBusClient
 from ovos_bus_client.message import Message
@@ -13,6 +14,7 @@ from tornado.websocket import WebSocketHandler
 
 from hivemind_bus_client.message import HiveMessage, HiveMessageType
 from hivemind_bus_client.serialization import decode_bitstring, get_bitstring
+from hivemind_bus_client.identity import NodeIdentity
 from hivemind_bus_client.util import (
     decrypt_bin,
     encrypt_bin,
@@ -236,7 +238,7 @@ class HiveMindListenerProtocol:
 
     require_crypto: bool = True  # throw error if crypto key not available
     handshake_enabled: bool = True  # generate a key per session if not pre-shared
-
+    identity: Optional[NodeIdentity] = None
     # below are optional callbacks to handle payloads
     # receives the payload + HiveMindClient that sent it
     escalate_callback = None  # slave asked to escalate payload
@@ -246,7 +248,8 @@ class HiveMindListenerProtocol:
     mycroft_bus_callback = None  # slave asked to inject payload into mycroft bus
     shared_bus_callback = None  # passive sharing of slave device bus (info)
 
-    def bind(self, websocket, bus):
+    def bind(self, websocket, bus, identity):
+        self.identity = identity
         websocket.protocol = self
         self.internal_protocol = HiveMindListenerInternalProtocol(bus)
         self.internal_protocol.register_bus_handlers()
@@ -367,6 +370,8 @@ class HiveMindListenerProtocol:
             self.handle_broadcast_message(message, client)
         elif message.msg_type == HiveMessageType.ESCALATE:
             self.handle_escalate_message(message, client)
+        elif message.msg_type == HiveMessageType.INTERCOM:
+            self.handle_intercom_message(message, client)
         elif message.msg_type == HiveMessageType.BINARY:
             self.handle_binary_message(message, client)
         else:
@@ -476,6 +481,16 @@ class HiveMindListenerProtocol:
         if self.broadcast_callback:
             self.broadcast_callback(payload)
 
+        if message.payload.msg_type == HiveMessageType.INTERCOM:
+            if self.handle_intercom_message(message.payload, client):
+                return
+
+        if message.payload.msg_type == HiveMessageType.BUS:
+            # if the message targets our site_id, send it to internal bus
+            site = message.target_site_id
+            if site and site == self.identity.site_id:
+                self.handle_bus_message(message.payload, client)
+
         # broadcast message to other peers
         payload = self._unpack_message(message, client)
         for peer in self.clients:
@@ -513,6 +528,16 @@ class HiveMindListenerProtocol:
 
         if self.propagate_callback:
             self.propagate_callback(payload)
+
+        if message.payload.msg_type == HiveMessageType.INTERCOM:
+            if self.handle_intercom_message(message.payload, client):
+                return
+
+        if message.payload.msg_type == HiveMessageType.BUS:
+            # if the message targets our site_id, send it to internal bus
+            site = message.target_site_id
+            if site and site == self.identity.site_id:
+                self.handle_bus_message(message.payload, client)
 
         # propagate message to other peers
         for peer in self.clients:
@@ -557,6 +582,16 @@ class HiveMindListenerProtocol:
         if self.escalate_callback:
             self.escalate_callback(payload)
 
+        if message.payload.msg_type == HiveMessageType.INTERCOM:
+            if self.handle_intercom_message(message.payload, client):
+                return
+
+        if message.payload.msg_type == HiveMessageType.BUS:
+            # if the message targets our site_id, send it to internal bus
+            site = message.target_site_id
+            if site and site == self.identity.site_id:
+                self.handle_bus_message(message.payload, client)
+
         # send to other masters
         message = Message(
             "hive.send.upstream",
@@ -569,6 +604,48 @@ class HiveMindListenerProtocol:
         )
         bus = self.get_bus(client)
         bus.emit(message)
+
+    def handle_intercom_message(
+            self, message: HiveMessage, client: HiveMindClientConnection
+    ) -> bool:
+
+        # if the message targets us, send it to internal bus
+        k = message.target_public_key
+        if k and k != self.identity.public_key:
+            # not for us
+            return False
+
+        pload = message.payload
+        if isinstance(pload, dict) and "ciphertext" in pload:
+            try:
+                message_from_blob = pgpy.PGPMessage.from_blob(pload["ciphertext"])
+
+                with open(self.identity.private_key, "r") as f:
+                    private_key = pgpy.PGPKey.from_blob(f.read())
+
+                decrypted: str = private_key.decrypt(message_from_blob)
+                message._payload = HiveMessage.deserialize(decrypted)
+            except:
+                if k:
+                    LOG.error("failed to decrypt message!")
+                else:
+                    LOG.debug("failed to decrypt message, not for us")
+                return False
+
+        if message.msg_type == HiveMessageType.BUS:
+            self.handle_bus_message(message, client)
+            return True
+        elif message.msg_type == HiveMessageType.PROPAGATE:
+            self.handle_propagate_message(message, client)
+            return True
+        elif message.msg_type == HiveMessageType.BROADCAST:
+            self.handle_broadcast_message(message, client)
+            return True
+        elif message.msg_type == HiveMessageType.ESCALATE:
+            self.handle_escalate_message(message, client)
+            return True
+
+        return False
 
     # HiveMind mycroft bus messages -  from slave -> master
     def handle_inject_mycroft_msg(
