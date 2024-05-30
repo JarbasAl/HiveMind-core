@@ -644,6 +644,12 @@ class HiveMindListenerProtocol:
         elif message.msg_type == HiveMessageType.ESCALATE:
             self.handle_escalate_message(message, client)
             return True
+        elif message.msg_type == HiveMessageType.BINARY:
+            self.handle_binary_message(message, client)
+            return True
+        elif message.msg_type == HiveMessageType.SHARED_BUS:
+            self.handle_client_bus(message.payload, client)
+            return True
 
         return False
 
