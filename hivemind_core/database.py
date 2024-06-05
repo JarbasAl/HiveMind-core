@@ -78,7 +78,8 @@ class Client:
                                                "recognizer_loop:record_begin", 
                                                "recognizer_loop:record_end", 
                                                "recognizer_loop:audio_output_start", 
-                                               "recognizer_loop:audio_output_end"]
+                                               "recognizer_loop:audio_output_end",
+                                               "ovos.common_play.SEI.get.response"]
         if "recognizer_loop:utterance" not in self.allowed_types:
             self.allowed_types.append("recognizer_loop:utterance")
         self.can_broadcast = can_broadcast
