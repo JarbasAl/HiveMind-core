@@ -68,15 +68,15 @@ class Clients:
         else:
             client_id = 0
             if len(self.get_all_clients()) > 0:
-                client_id: str = self.get_all_clients(asc=False)[0]["client_id"] + 1
+                client_id: str = self.get_all_clients(asc=False)[0]["client_id"] + 1             
             user = Client(
-                api_key=os.urandom(16).hex(),
+                api_key=key,
                 name=name,
                 blacklist=blacklist,
-                crypto_key=os.urandom(8).hex(),
+                crypto_key=crypto_key,
                 client_id=client_id,
                 is_admin=admin,
-                password=os.urandom(16).hex(),
+                password=password,
                 allowed_types=allowed_types,
             )
             self.r.json().set(f"client:{client_id}", Path.root_path(), user.__dict__)
