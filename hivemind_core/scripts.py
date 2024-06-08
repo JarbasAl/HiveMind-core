@@ -1,6 +1,6 @@
 import os
-
 import click
+import json
 from ovos_utils.xdg_utils import xdg_data_home
 from rich.console import Console
 from rich.prompt import Prompt
@@ -39,15 +39,11 @@ def add_client(name, access_key, password, crypto_key):
 
     access_key = access_key or os.urandom(16).hex()
     with ClientDatabase() as db:
-        name = name or f"HiveMind-Node-{db.total_clients()}"
-        db.add_client(name, access_key, crypto_key=key, password=password)
-
-        # verify
-        user = db.get_client_by_api_key(access_key)
-        node_id = db.get_item_id(user)
+        name = name or f"hivemind-node-{os.urandom(8).hex()}"
+        user = db.add_client(name, access_key, crypto_key=key, password=password)
 
         print("Credentials added to database!\n")
-        print("Node ID:", node_id)
+        print("Node ID:", user["client_id"])
         print("Friendly Name:", name)
         print("Access Key:", access_key)
         print("Password:", password)
@@ -96,7 +92,7 @@ def allow_msg(msg_type, node_id):
             node_id = _choices[0]
 
     with ClientDatabase() as db:
-        for client in db:
+        for client in db.get_all_clients():
             if client["client_id"] == int(node_id):
                 allowed_types = client.get("allowed_types", [])
                 if msg_type in allowed_types:
@@ -105,8 +101,7 @@ def allow_msg(msg_type, node_id):
 
                 allowed_types.append(msg_type)
                 client["allowed_types"] = allowed_types
-                item_id = db.get_item_id(client)
-                db.update_item(item_id, client)
+                db.update_client(client["client_id"], client)
                 print(f"Allowed '{msg_type}' for {client['name']}")
                 break
 
@@ -117,10 +112,9 @@ def allow_msg(msg_type, node_id):
 @click.argument("node_id", required=True, type=int)
 def delete_client(node_id):
     with ClientDatabase() as db:
-        for x in db:
+        for x in db.get_all_clients():
             if x["client_id"] == int(node_id):
-                item_id = db.get_item_id(x)
-                db.update_item(item_id, dict(client_id=-1, api_key="revoked"))
+                db.delete_client(node_id)
                 print(f"Revoked credentials!\n")
                 print("Node ID:", x["client_id"])
                 print("Friendly Name:", x["name"])
@@ -143,7 +137,7 @@ def list_clients():
     table.add_column("Crypto Key", justify="center")
 
     with ClientDatabase() as db:
-        for x in db:
+        for x in db.get_all_clients():
             if x["client_id"] != -1:
                 table.add_row(
                     str(x["client_id"]),
@@ -186,6 +180,12 @@ def list_clients():
     type=str,
     default="hivemind",
 )
+@click.option(
+    "--backend",
+    help="HiveMind database backend",
+    type=str,
+    default="json",
+)
 def listen(
     ovos_bus_address: str,
     ovos_bus_port: int,
@@ -194,6 +194,7 @@ def listen(
     ssl: bool,
     cert_dir: str,
     cert_name: str,
+    backend: str,
 ):
     from hivemind_core.service import HiveMindService
 
@@ -210,8 +211,12 @@ def listen(
         "cert_name": cert_name,
     }
 
+    database_config = {
+        "backend": backend,
+    }
+
     service = HiveMindService(
-        ovos_bus_config=ovos_bus_config, websocket_config=websocket_config
+        ovos_bus_config=ovos_bus_config, websocket_config=websocket_config, database_config=database_config
     )
     service.run()
 

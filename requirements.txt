@@ -9,3 +9,4 @@ click_default_group
 rich
 pyOpenSSL
 hivemind-ggwave
+redis[hiredis]
