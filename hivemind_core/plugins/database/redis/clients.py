@@ -66,7 +66,9 @@ class Clients:
                 user["password"] = password
             self.update_item(item_id, user)
         else:
-            client_id: str = self.get_all_clients(asc=False)[0]["client_id"] + 1
+            client_id = 0
+            if len(self.get_all_clients()) > 0:
+                client_id: str = self.get_all_clients(asc=False)[0]["client_id"] + 1
             user = Client(
                 api_key=os.urandom(16).hex(),
                 name=name,

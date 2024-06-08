@@ -202,7 +202,7 @@ class HiveMindService:
         )
         database_config = database_config or Configuration().get(
             "hivemind_database_config", {}
-        )                
+        )
         callbacks = StatusCallbackMap(
             on_started=started_hook,
             on_alive=alive_hook,
