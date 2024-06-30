@@ -144,7 +144,9 @@ class MessageBusEventHandler(WebSocketHandler):
                 return
 
             self.client.crypto_key = user.crypto_key
-            self.client.blacklist = user.blacklist.get("messages", [])
+            self.client.msg_blacklist = user.blacklist.get("messages", [])
+            self.client.skill_blacklist = user.blacklist.get("skills", [])
+            self.client.intent_blacklist = user.blacklist.get("intents", [])
             self.client.allowed_types = user.allowed_types
             self.client.can_broadcast = user.can_broadcast
             self.client.can_propagate = user.can_propagate

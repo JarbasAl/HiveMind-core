@@ -62,9 +62,15 @@ class HiveMindClientConnection:
     pswd_handshake: Optional[PasswordHandShake] = None
     socket: Optional[WebSocketHandler] = None
     crypto_key: Optional[str] = None
-    blacklist: List[str] = field(
+    msg_blacklist: List[str] = field(
         default_factory=list
     )  # list of ovos message_type to never be sent to this client
+    skill_blacklist: List[str] = field(
+        default_factory=list
+    )  # list of skill_id that can't match for this client
+    intent_blacklist: List[str] = field(
+        default_factory=list
+    )  # list of skill_id:intent_name that can't match for this client
     allowed_types: List[str] = field(
         default_factory=list
     )  # list of ovos message_type to allow to be sent from this client
@@ -87,7 +93,7 @@ class HiveMindClientConnection:
         else:
             _msg_type = message.payload.msg_type
 
-        if _msg_type in self.blacklist:
+        if _msg_type in self.msg_blacklist:
             return LOG.debug(
                 f"message type {_msg_type} " f"is blacklisted for {self.peer}"
             )
@@ -671,6 +677,15 @@ class HiveMindListenerProtocol:
         # ensure client specific session data is injected in query to ovos
         if "session" not in message.context:
             message.context["session"] = client.sess.serialize()
+
+        # inject client specific blacklist into session
+        if "blacklisted_skills" not in message.context["session"]:
+            message.context["session"]["blacklisted_skills"] = []
+        if "blacklisted_intents" not in message.context["session"]:
+            message.context["session"]["blacklisted_intents"] = []
+        message.context["session"]["blacklisted_skills"] += client.skill_blacklist
+        message.context["session"]["blacklisted_intents"] += client.intent_blacklist
+
         if message.msg_type == "speak":
             message.context["destination"] = ["audio"]  # make audible, this is injected "speak" command
         elif message.context.get("destination") is None:
