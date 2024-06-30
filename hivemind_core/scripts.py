@@ -187,13 +187,13 @@ def list_clients():
     default="hivemind",
 )
 def listen(
-    ovos_bus_address: str,
-    ovos_bus_port: int,
-    host: str,
-    port: int,
-    ssl: bool,
-    cert_dir: str,
-    cert_name: str,
+        ovos_bus_address: str,
+        ovos_bus_port: int,
+        host: str,
+        port: int,
+        ssl: bool,
+        cert_dir: str,
+        cert_name: str,
 ):
     from hivemind_core.service import HiveMindService
 
@@ -214,6 +214,112 @@ def listen(
         ovos_bus_config=ovos_bus_config, websocket_config=websocket_config
     )
     service.run()
+
+
+@hmcore_cmds.command(help="blacklist skills from being triggered by a client", name="blacklist-skill")
+@click.argument("skill_id", required=True, type=str)
+@click.argument("node_id", required=False, type=int)
+def blacklist_skill(skill_id, node_id):
+    if not node_id:
+        # list clients and prompt for id using rich
+        table = Table(title="HiveMind Clients")
+        table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+        table.add_column("Name", style="magenta")
+        table.add_column("Allowed Msg Types", style="yellow")
+        _choices = []
+        for client in ClientDatabase():
+            if client["client_id"] != -1:
+                table.add_row(
+                    str(client["client_id"]),
+                    client["name"],
+                    str(client.get("allowed_types", [])),
+                )
+                _choices.append(str(client["client_id"]))
+
+        if not _choices:
+            print("No clients found!")
+            exit()
+        elif len(_choices) > 1:
+            console = Console()
+            console.print(table)
+            _exit = str(max(int(i) for i in _choices) + 1)
+            node_id = Prompt.ask(
+                f"To which client you want to blacklist '{skill_id}'? ({_exit}='Exit')",
+                choices=_choices + [_exit],
+            )
+            if node_id == _exit:
+                console.print("User exit", style="red")
+                exit()
+        else:
+            node_id = _choices[0]
+
+    with ClientDatabase() as db:
+        for client in db:
+            if client["client_id"] == int(node_id):
+                blacklist = client.get("blacklist", {"messages": [], "skills": [], "intents": []})
+                if skill_id in blacklist["skills"]:
+                    print(f"Client {client['name']} already blacklisted '{skill_id}'")
+                    exit()
+
+                blacklist["skills"].append(skill_id)
+                client["blacklist"] = blacklist
+                item_id = db.get_item_id(client)
+                db.update_item(item_id, client)
+                print(f"Blacklisted '{skill_id}' for {client['name']}")
+                break
+
+
+@hmcore_cmds.command(help="blacklist intents from being triggered by a client", name="blacklist-intent")
+@click.argument("intent_id", required=True, type=str)
+@click.argument("node_id", required=False, type=int)
+def blacklist_intent(intent_id, node_id):
+    if not node_id:
+        # list clients and prompt for id using rich
+        table = Table(title="HiveMind Clients")
+        table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+        table.add_column("Name", style="magenta")
+        table.add_column("Allowed Msg Types", style="yellow")
+        _choices = []
+        for client in ClientDatabase():
+            if client["client_id"] != -1:
+                table.add_row(
+                    str(client["client_id"]),
+                    client["name"],
+                    str(client.get("allowed_types", [])),
+                )
+                _choices.append(str(client["client_id"]))
+
+        if not _choices:
+            print("No clients found!")
+            exit()
+        elif len(_choices) > 1:
+            console = Console()
+            console.print(table)
+            _exit = str(max(int(i) for i in _choices) + 1)
+            node_id = Prompt.ask(
+                f"To which client you want to blacklist '{intent_id}'? ({_exit}='Exit')",
+                choices=_choices + [_exit],
+            )
+            if node_id == _exit:
+                console.print("User exit", style="red")
+                exit()
+        else:
+            node_id = _choices[0]
+
+    with ClientDatabase() as db:
+        for client in db:
+            if client["client_id"] == int(node_id):
+                blacklist = client.get("blacklist", {"messages": [], "skills": [], "intents": []})
+                if intent_id in blacklist["intents"]:
+                    print(f"Client {client['name']} already blacklisted '{intent_id}'")
+                    exit()
+
+                blacklist["intents"].append(intent_id)
+                client["blacklist"] = blacklist
+                item_id = db.get_item_id(client)
+                db.update_item(item_id, client)
+                print(f"Blacklisted '{intent_id}' for {client['name']}")
+                break
 
 
 if __name__ == "__main__":
