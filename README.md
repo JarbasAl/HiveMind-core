@@ -12,6 +12,8 @@ Work in progress documentation can be found in the [docs](https://jarbashivemind
 
 You can also join the [Hivemind Matrix chat](https://matrix.to/#/#jarbashivemind:matrix.org) for general news, support and chit chat
 
+
+
 # Usage
 
 ```
