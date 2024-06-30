@@ -457,7 +457,10 @@ class HiveMindListenerProtocol:
         LOG.debug(f"Client session updated: {client.sess.serialize()}")
         if old != client.peer:
             LOG.debug(f"Client session_id changed! new peer_id: {client.peer}")
-            self.clients[client.peer] = self.clients.pop(old)
+            if old in self.clients:
+                self.clients[client.peer] = self.clients.pop(old)
+            else:
+                self.clients[client.peer] = client
 
         self.handle_inject_mycroft_msg(message.payload, client)
         if self.mycroft_bus_callback:
