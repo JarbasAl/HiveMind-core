@@ -466,6 +466,7 @@ class HiveMindListenerProtocol:
             else:
                 client.sess.session_id = sess.session_id
                 LOG.debug(f"Client session_id assigned via client first message: {client.sess.session_id}")
+            self.clients[client.peer] = client
 
         if sess.session_id == "default":
             sess.session_id = client.sess.session_id
