@@ -447,8 +447,13 @@ class HiveMindListenerProtocol:
             client.socket.close()
             return
 
-        LOG.debug(f"client session_id: {client.sess.session_id}")
         LOG.debug(f"client site_id: {client.sess.site_id}")
+        if client.sess.session_id != "default":
+            LOG.debug(f"client session_id: {client.sess.session_id}")
+            self.clients[client.peer] = client
+        else:
+            LOG.warning("client did not send a session in it's handshake")
+
         msg = HiveMessage(HiveMessageType.HANDSHAKE, payload)
         client.send(msg)  # client can recreate crypto_key on his side now
 
