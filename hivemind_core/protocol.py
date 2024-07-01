@@ -261,7 +261,6 @@ class HiveMindListenerProtocol:
 
     def handle_new_client(self, client: HiveMindClientConnection):
         LOG.debug(f"new client: {client.peer}")
-        self.clients[client.peer] = client
         message = Message(
             "hive.client.connect",
             {"ip": client.ip, "session_id": client.sess.session_id},
