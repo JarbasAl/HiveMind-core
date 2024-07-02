@@ -2,7 +2,27 @@
 
 ## [Unreleased](https://github.com/JarbasHiveMind/HiveMind-core/tree/HEAD)
 
-[Full Changelog](https://github.com/JarbasHiveMind/HiveMind-core/compare/V0.13.1a15...HEAD)
+[Full Changelog](https://github.com/JarbasHiveMind/HiveMind-core/compare/V0.13.1a17...HEAD)
+
+**Fixed bugs:**
+
+- fix/session\_mapping [\#94](https://github.com/JarbasHiveMind/HiveMind-core/pull/94) ([JarbasAl](https://github.com/JarbasAl))
+
+## [V0.13.1a17](https://github.com/JarbasHiveMind/HiveMind-core/tree/V0.13.1a17) (2024-07-01)
+
+[Full Changelog](https://github.com/JarbasHiveMind/HiveMind-core/compare/V0.13.1a16...V0.13.1a17)
+
+**Fixed bugs:**
+
+- fix/91 [\#92](https://github.com/JarbasHiveMind/HiveMind-core/pull/92) ([JarbasAl](https://github.com/JarbasAl))
+
+**Closed issues:**
+
+- KeyError: 'VoiceSatelliteV0.3.0:10.233.100.128::default' [\#91](https://github.com/JarbasHiveMind/HiveMind-core/issues/91)
+
+## [V0.13.1a16](https://github.com/JarbasHiveMind/HiveMind-core/tree/V0.13.1a16) (2024-06-05)
+
+[Full Changelog](https://github.com/JarbasHiveMind/HiveMind-core/compare/V0.13.1a15...V0.13.1a16)
 
 **Implemented enhancements:**
 
@@ -134,15 +154,15 @@
 
 ## [V0.13.0a4](https://github.com/JarbasHiveMind/HiveMind-core/tree/V0.13.0a4) (2023-08-03)
 
-[Full Changelog](https://github.com/JarbasHiveMind/HiveMind-core/compare/V0.13.0a2...V0.13.0a4)
-
-## [V0.13.0a2](https://github.com/JarbasHiveMind/HiveMind-core/tree/V0.13.0a2) (2023-08-03)
-
-[Full Changelog](https://github.com/JarbasHiveMind/HiveMind-core/compare/V0.13.0a3...V0.13.0a2)
+[Full Changelog](https://github.com/JarbasHiveMind/HiveMind-core/compare/V0.13.0a3...V0.13.0a4)
 
 ## [V0.13.0a3](https://github.com/JarbasHiveMind/HiveMind-core/tree/V0.13.0a3) (2023-08-03)
 
-[Full Changelog](https://github.com/JarbasHiveMind/HiveMind-core/compare/V0.11.0a3...V0.13.0a3)
+[Full Changelog](https://github.com/JarbasHiveMind/HiveMind-core/compare/V0.13.0a2...V0.13.0a3)
+
+## [V0.13.0a2](https://github.com/JarbasHiveMind/HiveMind-core/tree/V0.13.0a2) (2023-08-03)
+
+[Full Changelog](https://github.com/JarbasHiveMind/HiveMind-core/compare/V0.11.0a3...V0.13.0a2)
 
 **Breaking changes:**
 
