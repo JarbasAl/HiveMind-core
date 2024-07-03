@@ -130,7 +130,7 @@ class MessageBusEventHandler(WebSocketHandler):
             name=name,
             ip=self.request.remote_ip,
             socket=self,
-            sess=Session(session_id="default"),  # will be re-assigned once client sends it's own
+            sess=Session(session_id="default"),  # will be re-assigned once client sends handshake
             handshake=handshake,
             loop=self.protocol.loop,
         )
