@@ -45,12 +45,14 @@ Usage: hivemind-core listen [OPTIONS]
   start listening for HiveMind connections
 
 Options:
-  --host TEXT       HiveMind host
-  --port INTEGER    HiveMind port number
-  --ssl BOOLEAN     use wss://
-  --cert_dir TEXT   HiveMind SSL certificate directory
-  --cert_name TEXT  HiveMind SSL certificate file name
-  --help            Show this message and exit.
+  --host TEXT             HiveMind host
+  --port INTEGER          HiveMind port number
+  --ovos_bus_address TEXT Open Voice OS bus address
+  --ovos_bus_port INTEGER Open Voice OS bus port
+  --ssl BOOLEAN           use wss://
+  --cert_dir TEXT         HiveMind SSL certificate directory
+  --cert_name TEXT        HiveMind SSL certificate file name
+  --help                  Show this message and exit.
 
 
 $ hivemind-core delete-client --help
@@ -72,17 +74,18 @@ Options:
 
 ```
 
+By default HiveMind listens for the Open Voice OS bus on `127.0.0.1` which should not be changed when running as the same place. In some cases such as Kubernetes when the HiveMind Listener and Open Voice OS bus are in different pods, the HiveMind Listener should be able to connect to the pod address by using the `ovos_bus_address` and `ovos_bus_port` options.
+
 # Protocol
 
 | Protocol Version     | 0   | 1   |
-|----------------------|-----|-----|
+| -------------------- | --- | --- |
 | json serialization   | yes | yes |
 | binary serialization | no  | yes |
 | pre-shared AES key   | yes | yes |
 | password handshake   | no  | yes |
 | PGP handshake        | no  | yes |
 | zlib compression     | no  | yes |
-
 
 some clients such as HiveMind-Js do not yet support protocol V1
 
@@ -112,4 +115,3 @@ some clients such as HiveMind-Js do not yet support protocol V1
 ## Minds
 
 - [NodeRed](https://github.com/OpenJarbas/HiveMind-NodeRed)
-
