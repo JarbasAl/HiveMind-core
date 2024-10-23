@@ -15,10 +15,10 @@ def hmcore_cmds():
 
 
 @hmcore_cmds.command(help="add credentials for a client", name="add-client")
-@click.argument("name", required=False, type=str)
-@click.argument("access_key", required=False, type=str)
-@click.argument("password", required=False, type=str)
-@click.argument("crypto_key", required=False, type=str)
+@click.option("--name", required=False, type=str)
+@click.option("--access-key", required=False, type=str)
+@click.option("--password", required=False, type=str)
+@click.option("--crypto-key", required=False, type=str)
 def add_client(name, access_key, password, crypto_key):
     key = crypto_key
     if key:
