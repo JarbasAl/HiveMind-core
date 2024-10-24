@@ -99,7 +99,7 @@ class HiveMindClientConnection:
 
             if _msg_type in self.msg_blacklist:
                 LOG.debug(
-                    f"message type {_msg_type} " f"is blacklisted for {self.peer}"
+                    f"message type {_msg_type} is blacklisted for {self.peer}"
                 )
                 return
             elif message.msg_type == HiveMessageType.BUS:
