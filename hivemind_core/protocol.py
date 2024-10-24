@@ -89,22 +89,23 @@ class HiveMindClientConnection:
         return f"{self.name}:{self.ip}::{self.sess.session_id}"
 
     def send(self, message: HiveMessage):
+        is_bin = message.msg_type == HiveMessageType.BINARY
         # TODO some cleaning around HiveMessage
-        if isinstance(message.payload, dict):
-            _msg_type = message.payload.get("type")
-        else:
-            _msg_type = message.payload.msg_type
+        if not is_bin:
+            if isinstance(message.payload, dict):
+                _msg_type = message.payload.get("type")
+            else:
+                _msg_type = message.payload.msg_type
 
-        if _msg_type in self.msg_blacklist:
-            return LOG.debug(
-                f"message type {_msg_type} " f"is blacklisted for {self.peer}"
-            )
+            if _msg_type in self.msg_blacklist:
+                return LOG.debug(
+                    f"message type {_msg_type} " f"is blacklisted for {self.peer}"
+                )
+            elif message.msg_type == HiveMessageType.BUS:
+                LOG.debug(f"mycroft_type {_msg_type}")
 
         LOG.debug(f"sending to {self.peer}: {message.msg_type}")
-        if message.msg_type == HiveMessageType.BUS:
-            LOG.debug(f"mycroft_type {_msg_type}")
-        payload = message.serialize()  # json string
-        is_bin = False
+
         if self.crypto_key and message.msg_type not in [
             HiveMessageType.HANDSHAKE,
             HiveMessageType.HELLO,
@@ -115,10 +116,11 @@ class HiveMindClientConnection:
                 is_bin = True
             else:
                 payload = encrypt_as_json(
-                    self.crypto_key, payload
-                )  # still a json string
+                    self.crypto_key,  message.serialize()  # json string
+                )  # json string
             LOG.debug(f"encrypted payload: {len(payload)}")
         else:
+            payload = message.serialize()
             LOG.debug(f"sent unencrypted!")
 
         self.loop.install()
