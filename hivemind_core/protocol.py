@@ -293,8 +293,7 @@ class HiveMindListenerProtocol:
                 "pubkey": client.handshake.pubkey,
                 # allows any node to verify messages are signed with this
                 "peer": client.peer,  # this identifies the connected client in ovos message.context
-                "node_id": self.peer,
-                "session_id": client.sess.session_id,
+                "node_id": self.peer
             },
         )
         LOG.debug(f"saying HELLO to: {client.peer}")

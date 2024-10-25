@@ -47,7 +47,7 @@ setup(
     include_package_data=True,
     install_requires=required("requirements.txt"),
     url="https://github.com/JarbasHiveMind/HiveMind-core",
-    license="MIT",
+    license="Apache2.0",
     author="jarbasAI",
     author_email="jarbasai@mailfence.com",
     description="Mesh Networking utilities for OpenVoiceOS",
