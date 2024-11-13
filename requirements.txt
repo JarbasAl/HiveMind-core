@@ -9,4 +9,4 @@ hivemind-ggwave
 hivemind_bus_client>=0.1.0,<1.0.0
 HiveMind_presence>=0.0.2a3,<1.0.0
 ovos_utils>=0.0.33,<1.0.0
-ovos-bus-client>=0.0.6,<1.0.0
+ovos-bus-client>=0.0.6,<2.0.0
