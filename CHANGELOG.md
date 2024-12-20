@@ -1,12 +1,18 @@
 # Changelog
 
-## [0.14.1a1](https://github.com/JarbasHiveMind/HiveMind-core/tree/0.14.1a1) (2024-11-13)
+## [0.1.0a2](https://github.com/JarbasHiveMind/HiveMind-core/tree/0.1.0a2) (2024-12-20)
 
-[Full Changelog](https://github.com/JarbasHiveMind/HiveMind-core/compare/0.14.0...0.14.1a1)
+[Full Changelog](https://github.com/JarbasHiveMind/HiveMind-core/compare/0.14.1...0.1.0a2)
 
-**Merged pull requests:**
+**Implemented enhancements:**
 
-- fix: requirements.txt [\#102](https://github.com/JarbasHiveMind/HiveMind-core/pull/102) ([JarbasAl](https://github.com/JarbasAl))
+- Debug mode: log messages [\#37](https://github.com/JarbasHiveMind/HiveMind-core/issues/37)
+- feature - blacklist/whitelist intents/skills per client [\#1](https://github.com/JarbasHiveMind/HiveMind-core/issues/1)
+- feat/json\_redis\_sqlite\_db\_options [\#90](https://github.com/JarbasHiveMind/HiveMind-core/pull/90) ([JarbasAl](https://github.com/JarbasAl))
+
+**Closed issues:**
+
+- readme + changelog [\#3](https://github.com/JarbasHiveMind/HiveMind-core/issues/3)
 
 
 
