@@ -136,7 +136,8 @@ class MessageBusEventHandler(WebSocketHandler):
             loop=self.protocol.loop,
         )
         if self.db is None:
-            LOG.error("HiveMind database not initialized, can't validate connection")
+            LOG.error("Database connection not initialized. Please ensure database configuration is correct.")
+            LOG.debug(f"Client {client.peer} connection attempt failed due to missing database connection")
             self.protocol.handle_invalid_key_connected(self.client)
             self.close()
             return
