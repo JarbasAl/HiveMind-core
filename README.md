@@ -228,11 +228,11 @@ Kubernetes), use the `--ovos_bus_address` and `--ovos_bus_port` options to speci
 
 HiveMind-Core supports multiple database backends to store client credentials and settings. Each has its own use case:
 
-| Backend            | Use Case                                       | Default Location                      | Command Line options                               |
-|--------------------|------------------------------------------------|---------------------------------------|----------------------------------------------------|
-| **JSON** (default) | Simple, file-based setup for local use         | `~/.cache/hivemind-core/clients.json` | Configurable via `--db-name` and `--db-folder`     |
-| **SQLite**         | Lightweight relational DB for single instances | `~/.cache/hivemind-core/clients.db`   | Configurable via `--db-name` and `--db-folder`     |
-| **Redis**          | Distributed, high-performance environments     | `localhost:6379`                      | Configurable via `--redis-host` and `--redis-port` |
+| Backend            | Use Case                                       | Default Location                            | Command Line options                               |
+|--------------------|------------------------------------------------|---------------------------------------------|----------------------------------------------------|
+| **JSON** (default) | Simple, file-based setup for local use         | `~/.local/share/hivemind-core/clients.json` | Configurable via `--db-name` and `--db-folder`     |
+| **SQLite**         | Lightweight relational DB for single instances | `~/.local/share/hivemind-core/clients.db`   | Configurable via `--db-name` and `--db-folder`     |
+| **Redis**          | Distributed, high-performance environments     | `localhost:6379`                            | Configurable via `--redis-host` and `--redis-port` |
 
 **How to Choose?**
 

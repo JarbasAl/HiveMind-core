@@ -277,7 +277,8 @@ class JsonDB(AbstractDB):
     """Database implementation using JSON files."""
 
     def __init__(self, name="clients", subfolder="hivemind-core"):
-        self._db: Dict[int, ClientDict] = JsonStorageXDG(name, subfolder=subfolder)
+        self._db: Dict[int, ClientDict] = JsonStorageXDG(name, subfolder=subfolder, xdg_folder=xdg_data_home())
+        LOG.debug(f"json database path: {self._db.path}")
 
     def add_item(self, client: Client) -> bool:
         """
@@ -355,13 +356,11 @@ class SQLiteDB(AbstractDB):
     def __init__(self, name="clients", subfolder="hivemind-core"):
         """
         Initialize the SQLiteDB connection.
-
-        Args:
-            db_path: Path to the SQLite database file. Default is in-memory.
         """
         if sqlite3 is None:
             raise ImportError("pip install sqlite3")
         db_path = os.path.join(xdg_data_home(), subfolder, name + ".db")
+        LOG.debug(f"sqlite database path: {db_path}")
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
         self.conn = sqlite3.connect(db_path)
@@ -371,19 +370,21 @@ class SQLiteDB(AbstractDB):
     def _initialize_database(self):
         """Initialize the database schema."""
         with self.conn:
+            # crypto key is always 16 chars
+            # name description and api_key shouldnt be allowed to go over 255
             self.conn.execute("""
                 CREATE TABLE IF NOT EXISTS clients (
                     client_id INTEGER PRIMARY KEY,
-                    api_key TEXT NOT NULL,
-                    name TEXT,
-                    description TEXT,
+                    api_key VARCHAR(255) NOT NULL,
+                    name VARCHAR(255),
+                    description VARCHAR(255),
                     is_admin BOOLEAN DEFAULT FALSE,
                     last_seen REAL DEFAULT -1,
                     intent_blacklist TEXT,
                     skill_blacklist TEXT,
                     message_blacklist TEXT,
                     allowed_types TEXT,
-                    crypto_key TEXT,
+                    crypto_key VARCHAR(16),
                     password TEXT,
                     can_broadcast BOOLEAN DEFAULT TRUE,
                     can_escalate BOOLEAN DEFAULT TRUE,

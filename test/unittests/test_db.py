@@ -229,5 +229,6 @@ class TestClientNegativeCases(unittest.TestCase):
             # Or another appropriate exception if your parsing logic differs
             Client.deserialize(invalid_json_str)
 
+
 if __name__ == '__main__':
     unittest.main()
