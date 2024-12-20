@@ -134,42 +134,48 @@ class MessageBusEventHandler(WebSocketHandler):
             handshake=handshake,
             loop=self.protocol.loop,
         )
+        if self.protocol.db is None:
+            # should never happen, but double check!
+            LOG.error("Database connection not initialized. Please ensure database configuration is correct.")
+            LOG.exception(f"Client {self.client.peer} connection attempt failed due to missing database connection")
+            self.close()
+            raise RuntimeError("Database was not initialized!")  # let it propagate, this is developer error most likely
 
-        with ClientDatabase() as users:
-            user = users.get_client_by_api_key(key)
-            if not user:
-                LOG.error("Client provided an invalid api key")
-                self.protocol.handle_invalid_key_connected(self.client)
-                self.close()
-                return
+        user = self.protocol.db.get_client_by_api_key(key)
 
-            self.client.crypto_key = user.crypto_key
-            self.client.msg_blacklist = user.blacklist.get("messages", [])
-            self.client.skill_blacklist = user.blacklist.get("skills", [])
-            self.client.intent_blacklist = user.blacklist.get("intents", [])
-            self.client.allowed_types = user.allowed_types
-            self.client.can_broadcast = user.can_broadcast
-            self.client.can_propagate = user.can_propagate
-            self.client.can_escalate = user.can_escalate
-            if user.password:
-                # pre-shared password to derive aes_key
-                self.client.pswd_handshake = PasswordHandShake(user.password)
+        if not user:
+            LOG.error("Client provided an invalid api key")
+            self.protocol.handle_invalid_key_connected(self.client)
+            self.close()
+            return
 
-            self.client.node_type = HiveMindNodeType.NODE  # TODO . placeholder
+        self.client.crypto_key = user.crypto_key
+        self.client.msg_blacklist = user.message_blacklist or []
+        self.client.skill_blacklist = user.skill_blacklist or []
+        self.client.intent_blacklist = user.intent_blacklist or []
+        self.client.allowed_types = user.allowed_types
+        self.client.can_broadcast = user.can_broadcast
+        self.client.can_propagate = user.can_propagate
+        self.client.can_escalate = user.can_escalate
+        if user.password:
+            # pre-shared password to derive aes_key
+            self.client.pswd_handshake = PasswordHandShake(user.password)
 
-            if (
-                not self.client.crypto_key
-                and not self.protocol.handshake_enabled
-                and self.protocol.require_crypto
-            ):
-                LOG.error(
-                    "No pre-shared crypto key for client and handshake disabled, "
-                    "but configured to require crypto!"
-                )
-                # clients requiring handshake support might fail here
-                self.protocol.handle_invalid_protocol_version(self.client)
-                self.close()
-                return
+        self.client.node_type = HiveMindNodeType.NODE  # TODO . placeholder
+
+        if (
+            not self.client.crypto_key
+            and not self.protocol.handshake_enabled
+            and self.protocol.require_crypto
+        ):
+            LOG.error(
+                "No pre-shared crypto key for client and handshake disabled, "
+                "but configured to require crypto!"
+            )
+            # clients requiring handshake support might fail here
+            self.protocol.handle_invalid_protocol_version(self.client)
+            self.close()
+            return
 
         self.protocol.handle_new_client(self.client)
         # self.write_message(Message("connected").serialize())
@@ -197,6 +203,7 @@ class HiveMindService:
         protocol=HiveMindListenerProtocol,
         bus=None,
         ws_handler=MessageBusEventHandler,
+        db: ClientDatabase = None
     ):
         websocket_config = websocket_config or Configuration().get(
             "hivemind_websocket", {}
@@ -208,6 +215,7 @@ class HiveMindService:
             on_error=error_hook,
             on_stopping=stopping_hook,
         )
+        self.db = db or ClientDatabase()
         self._proto = protocol
         self._ws_handler = ws_handler
         if bus:
@@ -256,7 +264,7 @@ class HiveMindService:
         loop = ioloop.IOLoop.current()
 
         self.protocol = self._proto(loop=loop)
-        self.protocol.bind(self._ws_handler, self.bus, self.identity)
+        self.protocol.bind(self._ws_handler, self.bus, self.identity, self.db)
         self.status.bind(self.bus)
         self.status.set_started()
 

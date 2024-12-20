@@ -253,6 +253,7 @@ class HiveMindListenerProtocol:
     require_crypto: bool = True  # throw error if crypto key not available
     handshake_enabled: bool = True  # generate a key per session if not pre-shared
     identity: Optional[NodeIdentity] = None
+    db: Optional[ClientDatabase] = None
     # below are optional callbacks to handle payloads
     # receives the payload + HiveMindClient that sent it
     escalate_callback = None  # slave asked to escalate payload
@@ -262,8 +263,9 @@ class HiveMindListenerProtocol:
     mycroft_bus_callback = None  # slave asked to inject payload into mycroft bus
     shared_bus_callback = None  # passive sharing of slave device bus (info)
 
-    def bind(self, websocket, bus, identity):
+    def bind(self, websocket, bus, identity, db: ClientDatabase):
         self.identity = identity
+        self.db = db
         websocket.protocol = self
         self.internal_protocol = HiveMindListenerInternalProtocol(bus)
         self.internal_protocol.register_bus_handlers()
@@ -755,10 +757,10 @@ class HiveMindListenerProtocol:
         message.context["session"] = client.sess.serialize()
 
         # update blacklist from db, to account for changes without requiring a restart
-        with ClientDatabase() as users:
-            user = users.get_client_by_api_key(client.key)
-            client.skill_blacklist = user.blacklist.get("skills", [])
-            client.intent_blacklist = user.blacklist.get("intents", [])
+        user = self.db.get_client_by_api_key(client.key)
+        client.skill_blacklist = user.skill_blacklist or []
+        client.intent_blacklist = user.intent_blacklist or []
+        client.msg_blacklist = user.message_blacklist or []
 
         # inject client specific blacklist into session
         if "blacklisted_skills" not in message.context["session"]:
