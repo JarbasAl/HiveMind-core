@@ -758,8 +758,9 @@ class HiveMindListenerProtocol:
 
         # update blacklist from db, to account for changes without requiring a restart
         user = self.db.get_client_by_api_key(client.key)
-        client.skill_blacklist = user.skill_blacklist
-        client.intent_blacklist = user.intent_blacklist
+        client.skill_blacklist = user.skill_blacklist or []
+        client.intent_blacklist = user.intent_blacklist or []
+        client.msg_blacklist = user.message_blacklist or []
 
         # inject client specific blacklist into session
         if "blacklisted_skills" not in message.context["session"]:

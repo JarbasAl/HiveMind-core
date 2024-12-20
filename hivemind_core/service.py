@@ -99,7 +99,6 @@ def on_stopping():
 
 class MessageBusEventHandler(WebSocketHandler):
     protocol: Optional[HiveMindListenerProtocol] = None
-    db: Optional[ClientDatabase] = None
 
     @staticmethod
     def decode_auth(auth) -> Tuple[str, str]:
@@ -135,14 +134,15 @@ class MessageBusEventHandler(WebSocketHandler):
             handshake=handshake,
             loop=self.protocol.loop,
         )
-        if self.db is None:
+        if self.protocol.db is None:
             # should never happen, but double check!
             LOG.error("Database connection not initialized. Please ensure database configuration is correct.")
             LOG.exception(f"Client {self.client.peer} connection attempt failed due to missing database connection")
             self.close()
             raise RuntimeError("Database was not initialized!")  # let it propagate, this is developer error most likely
 
-        user = self.db.get_client_by_api_key(key)
+        user = self.protocol.db.get_client_by_api_key(key)
+
         if not user:
             LOG.error("Client provided an invalid api key")
             self.protocol.handle_invalid_key_connected(self.client)
@@ -150,9 +150,9 @@ class MessageBusEventHandler(WebSocketHandler):
             return
 
         self.client.crypto_key = user.crypto_key
-        self.client.msg_blacklist = user.message_blacklist
-        self.client.skill_blacklist = user.skill_blacklist
-        self.client.intent_blacklist = user.intent_blacklist
+        self.client.msg_blacklist = user.message_blacklist or []
+        self.client.skill_blacklist = user.skill_blacklist or []
+        self.client.intent_blacklist = user.intent_blacklist or []
         self.client.allowed_types = user.allowed_types
         self.client.can_broadcast = user.can_broadcast
         self.client.can_propagate = user.can_propagate
@@ -215,10 +215,9 @@ class HiveMindService:
             on_error=error_hook,
             on_stopping=stopping_hook,
         )
-        self.db = db
+        self.db = db or ClientDatabase()
         self._proto = protocol
         self._ws_handler = ws_handler
-        self._ws_handler.db = db
         if bus:
             self.bus = bus
         else:
