@@ -496,7 +496,7 @@ class SQLiteDB(AbstractDB):
 class RedisDB(AbstractDB):
     """Database implementation using Redis with RediSearch support."""
 
-    def __init__(self, host: str = "127.0.0.1", port: int = 6379, redis_db: int = 0):
+    def __init__(self, host: str = "127.0.0.1", port: int = 6379, password: Optional[str] = None, redis_db: int = 0):
         """
         Initialize the RedisDB connection.
 
@@ -507,7 +507,9 @@ class RedisDB(AbstractDB):
         """
         if redis is None:
             raise ImportError("pip install redis")
-        self.redis = redis.StrictRedis(host=host, port=port, db=redis_db, decode_responses=True)
+        self.redis = redis.StrictRedis(host=host, port=port, db=redis_db,
+                                       password=password if password else None,
+                                       decode_responses=True)
         # TODO - support for a proper search index
 
     def add_item(self, client: Client) -> bool:

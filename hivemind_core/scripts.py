@@ -1,4 +1,5 @@
 import os
+from typing import Optional
 
 import click
 from ovos_utils.xdg_utils import xdg_data_home
@@ -10,13 +11,14 @@ from hivemind_core.database import ClientDatabase
 
 
 def get_db_kwargs(db_backend: str, db_name: str, db_folder: str,
-                  redis_host: str, redis_port: int) -> dict:
+                  redis_host: str, redis_port: int, redis_password: Optional[str]) -> dict:
     """Get database configuration kwargs based on backend type."""
     kwargs = {"backend": db_backend}
     if db_backend == "redis":
         kwargs.update({
             "host": redis_host,
-            "port": redis_port
+            "port": redis_port,
+            "password": redis_password
         })
     else:
         kwargs.update({
@@ -44,9 +46,11 @@ def hmcore_cmds():
               help="[json/sqlite] The subfolder where database files are stored. ~/.cache/{db_folder}}")
 @click.option("--redis-host", default="localhost", help="[redis] Host for Redis. Default is localhost.")
 @click.option("--redis-port", default=6379, help="[redis] Port for Redis. Default is 6379.")
+@click.option("--redis-password", required=FileNotFoundError, help="[redis] Password for Redis. Default None")
 def add_client(name, access_key, password, crypto_key,
-               db_backend, db_name, db_folder, redis_host, redis_port):
-    kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port)
+               db_backend, db_name, db_folder,
+               redis_host, redis_port, redis_password):
+    kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port, redis_password)
 
     key = crypto_key
     if key:
@@ -94,16 +98,17 @@ def add_client(name, access_key, password, crypto_key,
 @click.argument("msg_type", required=True, type=str)
 @click.argument("node_id", required=False, type=int)
 @click.option("--db-backend", type=click.Choice(['redis', 'json', 'sqlite'], case_sensitive=False), default='json',
-              help="Select the database backend to use. Options: redis, sqlite, json." )
+              help="Select the database backend to use. Options: redis, sqlite, json.")
 @click.option("--db-name", type=str, default="clients",
               help="[json/sqlite] The name for the database file. ~/.cache/hivemind-core/{name}")
 @click.option("--db-folder", type=str, default="hivemind-core",
               help="[json/sqlite] The subfolder where database files are stored. ~/.cache/{db_folder}}")
 @click.option("--redis-host", default="localhost", help="[redis] Host for Redis. Default is localhost.")
 @click.option("--redis-port", default=6379, help="[redis] Port for Redis. Default is 6379.")
+@click.option("--redis-password", required=FileNotFoundError, help="[redis] Password for Redis. Default None")
 def allow_msg(msg_type, node_id,
-              db_backend, db_name, db_folder, redis_host, redis_port):
-    kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port)
+              db_backend, db_name, db_folder, redis_host, redis_port, redis_password):
+    kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port, redis_password)
 
     if not node_id:
         # list clients and prompt for id using rich
@@ -155,16 +160,17 @@ def allow_msg(msg_type, node_id,
 )
 @click.argument("node_id", required=True, type=int)
 @click.option("--db-backend", type=click.Choice(['redis', 'json', 'sqlite'], case_sensitive=False), default='json',
-              help="Select the database backend to use. Options: redis, sqlite, json." )
+              help="Select the database backend to use. Options: redis, sqlite, json.")
 @click.option("--db-name", type=str, default="clients",
               help="[json/sqlite] The name for the database file. ~/.cache/hivemind-core/{name}")
 @click.option("--db-folder", type=str, default="hivemind-core",
               help="[json/sqlite] The subfolder where database files are stored. ~/.cache/{db_folder}}")
 @click.option("--redis-host", default="localhost", help="[redis] Host for Redis. Default is localhost.")
 @click.option("--redis-port", default=6379, help="[redis] Port for Redis. Default is 6379.")
+@click.option("--redis-password", required=FileNotFoundError, help="[redis] Password for Redis. Default None")
 def delete_client(node_id, db_name, db_folder,
-                  db_backend, redis_host, redis_port):
-    kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port)
+                  db_backend, redis_host, redis_port, redis_password):
+    kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port, redis_password)
     with ClientDatabase(**kwargs) as db:
         for x in db:
             if x["client_id"] == int(node_id):
@@ -183,14 +189,16 @@ def delete_client(node_id, db_name, db_folder,
 
 @hmcore_cmds.command(help="list clients and credentials", name="list-clients")
 @click.option("--db-backend", type=click.Choice(['redis', 'json', 'sqlite'], case_sensitive=False), default='json',
-              help="Select the database backend to use. Options: redis, sqlite, json." )
+              help="Select the database backend to use. Options: redis, sqlite, json.")
 @click.option("--db-name", type=str, default="clients",
               help="[json/sqlite] The name for the database file. ~/.cache/hivemind-core/{name}")
 @click.option("--db-folder", type=str, default="hivemind-core",
               help="[json/sqlite] The subfolder where database files are stored. ~/.cache/{db_folder}}")
 @click.option("--redis-host", default="localhost", help="[redis] Host for Redis. Default is localhost.")
 @click.option("--redis-port", default=6379, help="[redis] Port for Redis. Default is 6379.")
-def list_clients(db_backend, db_name, db_folder, redis_host, redis_port):
+@click.option("--redis-password", required=FileNotFoundError, help="[redis] Password for Redis. Default None")
+def list_clients(db_backend, db_name, db_folder, redis_host, redis_port, redis_password):
+    kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port, redis_password)
     console = Console()
     table = Table(title="HiveMind Credentials:")
     table.add_column("ID", justify="center")
@@ -199,7 +207,6 @@ def list_clients(db_backend, db_name, db_folder, redis_host, redis_port):
     table.add_column("Password", justify="center")
     table.add_column("Crypto Key", justify="center")
 
-    kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port)
     with ClientDatabase(**kwargs) as db:
         for x in db:
             if x["client_id"] != -1:
@@ -245,25 +252,19 @@ def list_clients(db_backend, db_name, db_folder, redis_host, redis_port):
     default="hivemind",
 )
 @click.option("--db-backend", type=click.Choice(['redis', 'json', 'sqlite'], case_sensitive=False), default='json',
-              help="Select the database backend to use. Options: redis, sqlite, json." )
+              help="Select the database backend to use. Options: redis, sqlite, json.")
 @click.option("--db-name", type=str, default="clients",
               help="[json/sqlite] The name for the database file. ~/.cache/hivemind-core/{name}")
 @click.option("--db-folder", type=str, default="hivemind-core",
               help="[json/sqlite] The subfolder where database files are stored. ~/.cache/{db_folder}}")
 @click.option("--redis-host", default="localhost", help="[redis] Host for Redis. Default is localhost.")
 @click.option("--redis-port", default=6379, help="[redis] Port for Redis. Default is 6379.")
-def listen(
-        ovos_bus_address: str,
-        ovos_bus_port: int,
-        host: str,
-        port: int,
-        ssl: bool,
-        cert_dir: str,
-        cert_name: str,
-        db_backend,
-        db_name, db_folder,
-        redis_host, redis_port
-):
+@click.option("--redis-password", required=FileNotFoundError, help="[redis] Password for Redis. Default None")
+def listen(ovos_bus_address: str, ovos_bus_port: int, host: str, port: int,
+           ssl: bool, cert_dir: str, cert_name: str,
+           db_backend, db_name, db_folder,
+           redis_host, redis_port, redis_password):
+    kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port, redis_password)
     from hivemind_core.service import HiveMindService
 
     ovos_bus_config = {
@@ -278,9 +279,6 @@ def listen(
         "cert_dir": cert_dir,
         "cert_name": cert_name,
     }
-
-    kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port)
-
     service = HiveMindService(
         ovos_bus_config=ovos_bus_config,
         websocket_config=websocket_config,
@@ -293,16 +291,17 @@ def listen(
 @click.argument("skill_id", required=True, type=str)
 @click.argument("node_id", required=False, type=int)
 @click.option("--db-backend", type=click.Choice(['redis', 'json', 'sqlite'], case_sensitive=False), default='json',
-              help="Select the database backend to use. Options: redis, sqlite, json." )
+              help="Select the database backend to use. Options: redis, sqlite, json.")
 @click.option("--db-name", type=str, default="clients",
               help="[json/sqlite] The name for the database file. ~/.cache/hivemind-core/{name}")
 @click.option("--db-folder", type=str, default="hivemind-core",
               help="[json/sqlite] The subfolder where database files are stored. ~/.cache/{db_folder}}")
 @click.option("--redis-host", default="localhost", help="[redis] Host for Redis. Default is localhost.")
 @click.option("--redis-port", default=6379, help="[redis] Port for Redis. Default is 6379.")
+@click.option("--redis-password", required=FileNotFoundError, help="[redis] Password for Redis. Default None")
 def blacklist_skill(skill_id, node_id,
-                    db_backend, db_name, db_folder, redis_host, redis_port):
-    kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port)
+                    db_backend, db_name, db_folder, redis_host, redis_port, redis_password):
+    kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port, redis_password)
 
     if not node_id:
         # list clients and prompt for id using rich
@@ -354,16 +353,17 @@ def blacklist_skill(skill_id, node_id,
 @click.argument("skill_id", required=True, type=str)
 @click.argument("node_id", required=False, type=int)
 @click.option("--db-backend", type=click.Choice(['redis', 'json', 'sqlite'], case_sensitive=False), default='json',
-              help="Select the database backend to use. Options: redis, sqlite, json." )
+              help="Select the database backend to use. Options: redis, sqlite, json.")
 @click.option("--db-name", type=str, default="clients",
               help="[json/sqlite] The name for the database file. ~/.cache/hivemind-core/{name}")
 @click.option("--db-folder", type=str, default="hivemind-core",
               help="[json/sqlite] The subfolder where database files are stored. ~/.cache/{db_folder}}")
 @click.option("--redis-host", default="localhost", help="[redis] Host for Redis. Default is localhost.")
 @click.option("--redis-port", default=6379, help="[redis] Port for Redis. Default is 6379.")
+@click.option("--redis-password", required=FileNotFoundError, help="[redis] Password for Redis. Default None")
 def unblacklist_skill(skill_id, node_id,
-                      db_backend, db_name, db_folder, redis_host, redis_port):
-    kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port)
+                      db_backend, db_name, db_folder, redis_host, redis_port, redis_password):
+    kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port, redis_password)
 
     if not node_id:
         # list clients and prompt for id using rich
@@ -414,16 +414,17 @@ def unblacklist_skill(skill_id, node_id,
 @click.argument("intent_id", required=True, type=str)
 @click.argument("node_id", required=False, type=int)
 @click.option("--db-backend", type=click.Choice(['redis', 'json', 'sqlite'], case_sensitive=False), default='json',
-              help="Select the database backend to use. Options: redis, sqlite, json." )
+              help="Select the database backend to use. Options: redis, sqlite, json.")
 @click.option("--db-name", type=str, default="clients",
               help="[json/sqlite] The name for the database file. ~/.cache/hivemind-core/{name}")
 @click.option("--db-folder", type=str, default="hivemind-core",
               help="[json/sqlite] The subfolder where database files are stored. ~/.cache/{db_folder}}")
 @click.option("--redis-host", default="localhost", help="[redis] Host for Redis. Default is localhost.")
 @click.option("--redis-port", default=6379, help="[redis] Port for Redis. Default is 6379.")
+@click.option("--redis-password", required=FileNotFoundError, help="[redis] Password for Redis. Default None")
 def blacklist_intent(intent_id, node_id,
-                     db_backend, db_name, db_folder, redis_host, redis_port):
-    kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port)
+                     db_backend, db_name, db_folder, redis_host, redis_port, redis_password):
+    kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port, redis_password)
 
     if not node_id:
         # list clients and prompt for id using rich
@@ -474,16 +475,17 @@ def blacklist_intent(intent_id, node_id,
 @click.argument("intent_id", required=True, type=str)
 @click.argument("node_id", required=False, type=int)
 @click.option("--db-backend", type=click.Choice(['redis', 'json', 'sqlite'], case_sensitive=False), default='json',
-              help="Select the database backend to use. Options: redis, sqlite, json." )
+              help="Select the database backend to use. Options: redis, sqlite, json.")
 @click.option("--db-name", type=str, default="clients",
               help="[json/sqlite] The name for the database file. ~/.cache/hivemind-core/{name}")
 @click.option("--db-folder", type=str, default="hivemind-core",
               help="[json/sqlite] The subfolder where database files are stored. ~/.cache/{db_folder}}")
 @click.option("--redis-host", default="localhost", help="[redis] Host for Redis. Default is localhost.")
 @click.option("--redis-port", default=6379, help="[redis] Port for Redis. Default is 6379.")
+@click.option("--redis-password", required=FileNotFoundError, help="[redis] Password for Redis. Default None")
 def unblacklist_intent(intent_id, node_id,
-                       db_backend, db_name, db_folder, redis_host, redis_port):
-    kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port)
+                       db_backend, db_name, db_folder, redis_host, redis_port, redis_password):
+    kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port, redis_password)
 
     if not node_id:
         # list clients and prompt for id using rich
