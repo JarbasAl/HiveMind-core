@@ -258,9 +258,16 @@ HiveMind-Core supports multiple database backends to store client credentials an
 
 ## 🧩 HiveMind Ecosystem
 
-### Core Components
+### Minds
+
+You must run at least one of these
 
 - **HiveMind Core** (this repository): The central hub for managing connections and routing messages between devices.
+  *text* input only
+- [Hivemind Listener](https://github.com/JarbasHiveMind/HiveMind-listener) - an extension of `hivemind-core` for
+  streaming *audio* from satellites **<- you likely want this one**
+- [Persona](https://github.com/JarbasHiveMind/HiveMind-persona) - run
+  a [persona](https://github.com/OpenVoiceOS/ovos-persona) (eg. LLM). *text* input only
 
 ### Client Libraries
 
@@ -269,21 +276,36 @@ HiveMind-Core supports multiple database backends to store client credentials an
 
 ### Terminals
 
-- [Remote CLI](https://github.com/OpenJarbas/HiveMind-cli) (**Recommended Starting Point**)
-- [Voice Satellite](https://github.com/OpenJarbas/HiveMind-voice-sat)
-- [Flask Chatroom](https://github.com/JarbasHiveMind/HiveMind-flask-template)
-- [Web Chat](https://github.com/OpenJarbas/HiveMind-webchat)
+- [Voice Satellite](https://github.com/OpenJarbas/HiveMind-voice-sat)  (standalone OVOS *local* audio stack)
+- [Voice Relay](https://github.com/JarbasHiveMind/HiveMind-voice-relay)  (lightweight audio satellite, STT/TTS
+  processed *server* side, **requires** `hivemind-listener`)
+- [Mic Satellite](https://github.com/JarbasHiveMind/hivemind-mic-satellite) (only VAD runs on device, audio streamed
+  and fully processed *server* side, **requires** `hivemind-listener`)
+- [Web Chat](https://github.com/OpenJarbas/HiveMind-webchat) (*client-side* browser hivemind connection)
+- [Flask Chatroom](https://github.com/JarbasHiveMind/HiveMind-flask-template)  (**boilerplate template** - *server-side*
+  hivemind connection)
 
 ### Bridges
 
 - [Mattermost Bridge](https://github.com/OpenJarbas/HiveMind_mattermost_bridge)
-- [HackChat Bridge](https://github.com/OpenJarbas/HiveMind-HackChatBridge)
-- [Twitch Bridge](https://github.com/OpenJarbas/HiveMind-twitch-bridge)
 - [DeltaChat Bridge](https://github.com/JarbasHiveMind/HiveMind-deltachat-bridge)
 
-### Minds
+---
 
-- [NodeRed Integration](https://github.com/OpenJarbas/HiveMind-NodeRed)
+## Voice Satellite Comparison
+
+| Feature                            | **HiveMind Voice Satellite**               | **HiveMind Voice Relay**                                                                  | **HiveMind Microphone Satellite**                            |
+|------------------------------------|--------------------------------------------|-------------------------------------------------------------------------------------------|--------------------------------------------------------------|
+| **Use Case**                       | Full voice satellite with local processing | Offloads voice processing to **HiveMind Listener**, better suited for secure environments | Super lightweight satellite for fully remote audio streaming |
+| **Audio Processing**               | Local (STT, TTS, Wake Word, VAD)           | STT and TTS handled on **HiveMind Listener**                                              | Wake Word, STT and TTS handled on **HiveMind Listener**      |
+| **Server Requirements**            | Works with **all** mind implementations    | Requires **hivemind-listener**                                                            | Requires **hivemind-listener**                               |
+| **Voice Activity Detection (VAD)** | Handled locally                            | Handled locally                                                                           | Handled locally                                              |
+| **Wake Word Detection**            | Handled locally                            | Handled locally                                                                           | Handled by **HiveMind Listener**                             |
+| **STT Processing**                 | Handled locally                            | Handled by **HiveMind Listener**                                                          | Handled by **HiveMind Listener**                             |
+| **TTS Processing**                 | Handled locally                            | Handled by **HiveMind Listener**                                                          | Handled by **HiveMind Listener**                             |
+| **Media Playback Support**         | Yes, with supported plugins                | Yes, with supported plugins                                                               | No                                                           |
+| **PHAL plugins**                   | Supported                                  | Supported                                                                                 | Unsupported                                                  |
+| **Transformer plugins**            | Supported                                  | Supported                                                                                 | Unsupported                                                  |
 
 ---
 
