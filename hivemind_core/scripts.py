@@ -46,7 +46,7 @@ def hmcore_cmds():
               help="[json/sqlite] The subfolder where database files are stored. ~/.cache/{db_folder}}")
 @click.option("--redis-host", default="localhost", help="[redis] Host for Redis. Default is localhost.")
 @click.option("--redis-port", default=6379, help="[redis] Port for Redis. Default is 6379.")
-@click.option("--redis-password", required=FileNotFoundError, help="[redis] Password for Redis. Default None")
+@click.option("--redis-password", required=False, help="[redis] Password for Redis. Default None")
 def add_client(name, access_key, password, crypto_key,
                db_backend, db_name, db_folder,
                redis_host, redis_port, redis_password):
@@ -105,7 +105,7 @@ def add_client(name, access_key, password, crypto_key,
               help="[json/sqlite] The subfolder where database files are stored. ~/.cache/{db_folder}}")
 @click.option("--redis-host", default="localhost", help="[redis] Host for Redis. Default is localhost.")
 @click.option("--redis-port", default=6379, help="[redis] Port for Redis. Default is 6379.")
-@click.option("--redis-password", required=FileNotFoundError, help="[redis] Password for Redis. Default None")
+@click.option("--redis-password", required=False, help="[redis] Password for Redis. Default None")
 def allow_msg(msg_type, node_id,
               db_backend, db_name, db_folder, redis_host, redis_port, redis_password):
     kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port, redis_password)
@@ -167,7 +167,7 @@ def allow_msg(msg_type, node_id,
               help="[json/sqlite] The subfolder where database files are stored. ~/.cache/{db_folder}}")
 @click.option("--redis-host", default="localhost", help="[redis] Host for Redis. Default is localhost.")
 @click.option("--redis-port", default=6379, help="[redis] Port for Redis. Default is 6379.")
-@click.option("--redis-password", required=FileNotFoundError, help="[redis] Password for Redis. Default None")
+@click.option("--redis-password", required=False, help="[redis] Password for Redis. Default None")
 def delete_client(node_id, db_name, db_folder,
                   db_backend, redis_host, redis_port, redis_password):
     kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port, redis_password)
@@ -196,7 +196,7 @@ def delete_client(node_id, db_name, db_folder,
               help="[json/sqlite] The subfolder where database files are stored. ~/.cache/{db_folder}}")
 @click.option("--redis-host", default="localhost", help="[redis] Host for Redis. Default is localhost.")
 @click.option("--redis-port", default=6379, help="[redis] Port for Redis. Default is 6379.")
-@click.option("--redis-password", required=FileNotFoundError, help="[redis] Password for Redis. Default None")
+@click.option("--redis-password", required=False, help="[redis] Password for Redis. Default None")
 def list_clients(db_backend, db_name, db_folder, redis_host, redis_port, redis_password):
     kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port, redis_password)
     console = Console()
@@ -259,7 +259,7 @@ def list_clients(db_backend, db_name, db_folder, redis_host, redis_port, redis_p
               help="[json/sqlite] The subfolder where database files are stored. ~/.cache/{db_folder}}")
 @click.option("--redis-host", default="localhost", help="[redis] Host for Redis. Default is localhost.")
 @click.option("--redis-port", default=6379, help="[redis] Port for Redis. Default is 6379.")
-@click.option("--redis-password", required=FileNotFoundError, help="[redis] Password for Redis. Default None")
+@click.option("--redis-password", required=False, help="[redis] Password for Redis. Default None")
 def listen(ovos_bus_address: str, ovos_bus_port: int, host: str, port: int,
            ssl: bool, cert_dir: str, cert_name: str,
            db_backend, db_name, db_folder,
@@ -298,7 +298,7 @@ def listen(ovos_bus_address: str, ovos_bus_port: int, host: str, port: int,
               help="[json/sqlite] The subfolder where database files are stored. ~/.cache/{db_folder}}")
 @click.option("--redis-host", default="localhost", help="[redis] Host for Redis. Default is localhost.")
 @click.option("--redis-port", default=6379, help="[redis] Port for Redis. Default is 6379.")
-@click.option("--redis-password", required=FileNotFoundError, help="[redis] Password for Redis. Default None")
+@click.option("--redis-password", required=False, help="[redis] Password for Redis. Default None")
 def blacklist_skill(skill_id, node_id,
                     db_backend, db_name, db_folder, redis_host, redis_port, redis_password):
     kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port, redis_password)
@@ -360,7 +360,7 @@ def blacklist_skill(skill_id, node_id,
               help="[json/sqlite] The subfolder where database files are stored. ~/.cache/{db_folder}}")
 @click.option("--redis-host", default="localhost", help="[redis] Host for Redis. Default is localhost.")
 @click.option("--redis-port", default=6379, help="[redis] Port for Redis. Default is 6379.")
-@click.option("--redis-password", required=FileNotFoundError, help="[redis] Password for Redis. Default None")
+@click.option("--redis-password", required=False, help="[redis] Password for Redis. Default None")
 def unblacklist_skill(skill_id, node_id,
                       db_backend, db_name, db_folder, redis_host, redis_port, redis_password):
     kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port, redis_password)
@@ -421,7 +421,7 @@ def unblacklist_skill(skill_id, node_id,
               help="[json/sqlite] The subfolder where database files are stored. ~/.cache/{db_folder}}")
 @click.option("--redis-host", default="localhost", help="[redis] Host for Redis. Default is localhost.")
 @click.option("--redis-port", default=6379, help="[redis] Port for Redis. Default is 6379.")
-@click.option("--redis-password", required=FileNotFoundError, help="[redis] Password for Redis. Default None")
+@click.option("--redis-password", required=False, help="[redis] Password for Redis. Default None")
 def blacklist_intent(intent_id, node_id,
                      db_backend, db_name, db_folder, redis_host, redis_port, redis_password):
     kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port, redis_password)
@@ -482,7 +482,7 @@ def blacklist_intent(intent_id, node_id,
               help="[json/sqlite] The subfolder where database files are stored. ~/.cache/{db_folder}}")
 @click.option("--redis-host", default="localhost", help="[redis] Host for Redis. Default is localhost.")
 @click.option("--redis-port", default=6379, help="[redis] Port for Redis. Default is 6379.")
-@click.option("--redis-password", required=FileNotFoundError, help="[redis] Password for Redis. Default None")
+@click.option("--redis-password", required=False, help="[redis] Password for Redis. Default None")
 def unblacklist_intent(intent_id, node_id,
                        db_backend, db_name, db_folder, redis_host, redis_port, redis_password):
     kwargs = get_db_kwargs(db_backend, db_name, db_folder, redis_host, redis_port, redis_password)
