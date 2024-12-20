@@ -41,7 +41,7 @@ def required(requirements_file):
 
 
 setup(
-    name="jarbas_hive_mind",
+    name="hivemind-core",
     version=get_version(),
     packages=["hivemind_core"],
     include_package_data=True,
