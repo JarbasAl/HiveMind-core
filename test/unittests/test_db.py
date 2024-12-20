@@ -183,5 +183,51 @@ class TestClientDatabase(unittest.TestCase):
         self.assertEqual(clients[0].name, "Test Client")
 
 
+class TestClientNegativeCases(unittest.TestCase):
+
+    def test_missing_required_fields(self):
+        # Missing the "client_id" field, which is required by the Client dataclass
+        client_data = {
+            "api_key": "test_api_key",
+            "name": "Test Client",
+            "description": "A test client",
+            "is_admin": False
+        }
+        with self.assertRaises(TypeError):
+            Client(**client_data)
+
+    def test_invalid_field_type_for_client_id(self):
+        # Providing a string instead of an integer for "client_id"
+        client_data = {
+            "client_id": "invalid_id",
+            "api_key": "test_api_key",
+            "name": "Test Client",
+            "description": "A test client",
+            "is_admin": False
+        }
+        with self.assertRaises(ValueError):
+            # If needed, adjust logic in your code to raise ValueError instead of TypeError
+            Client(**client_data)
+
+    def test_invalid_field_type_for_is_admin(self):
+        # Providing a string instead of a boolean for "is_admin"
+        client_data = {
+            "client_id": 1,
+            "api_key": "test_api_key",
+            "name": "Test Client",
+            "description": "A test client",
+            "is_admin": "not_boolean"
+        }
+        with self.assertRaises(ValueError):
+            # If needed, adjust logic in your code to raise ValueError instead of TypeError
+            Client(**client_data)
+
+    def test_deserialize_with_incorrect_json_structure(self):
+        # Passing an invalid JSON string missing required fields
+        invalid_json_str = '{"client_id": 1}'
+        with self.assertRaises(TypeError):
+            # Or another appropriate exception if your parsing logic differs
+            Client.deserialize(invalid_json_str)
+
 if __name__ == '__main__':
     unittest.main()
