@@ -474,11 +474,11 @@ class SQLiteDB(AbstractDB):
     def _row_to_client(row: sqlite3.Row) -> Client:
         """Convert a database row to a Client instance."""
         return Client(
-            client_id=row["client_id"],
+            client_id=int(row["client_id"]),
             api_key=row["api_key"],
             name=row["name"],
             description=row["description"],
-            is_admin=row["is_admin"],
+            is_admin=row["is_admin"] or False,
             last_seen=row["last_seen"],
             intent_blacklist=json.loads(row["intent_blacklist"] or "[]"),
             skill_blacklist=json.loads(row["skill_blacklist"] or "[]"),
