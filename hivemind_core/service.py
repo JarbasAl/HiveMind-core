@@ -136,11 +136,11 @@ class MessageBusEventHandler(WebSocketHandler):
             loop=self.protocol.loop,
         )
         if self.db is None:
+            # should never happen, but double check!
             LOG.error("Database connection not initialized. Please ensure database configuration is correct.")
-            LOG.debug(f"Client {client.peer} connection attempt failed due to missing database connection")
-            self.protocol.handle_invalid_key_connected(self.client)
+            LOG.exception(f"Client {self.client.peer} connection attempt failed due to missing database connection")
             self.close()
-            return
+            raise RuntimeError("Database was not initialized!")  # let it propagate, this is developer error most likely
 
         user = self.db.get_client_by_api_key(key)
         if not user:

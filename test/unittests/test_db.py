@@ -1,4 +1,5 @@
 import json
+import os
 import unittest
 from unittest.mock import patch, MagicMock
 
@@ -70,6 +71,10 @@ class TestJsonDB(unittest.TestCase):
 
     def setUp(self):
         self.db = JsonDB(name=".hivemind-test")
+
+    def tearDown(self):
+        if os.path.exists(self.db._db.path):
+            os.remove(self.db._db.path)
 
     def test_add_item(self):
         client_data = {
